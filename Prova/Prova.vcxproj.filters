@@ -13,40 +13,43 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Header Files">
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Server">
+      <UniqueIdentifier>{0d264e47-33f4-4746-ba1e-0ed90ebd69f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Server\Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Server\Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Server.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GenericSymbol.cpp">
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="User.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Server.cpp">
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TextFile.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GenericSymbol.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TextSymbol.cpp">
-      <Filter>Generated Files</Filter>
+    <ClCompile Include="User.cpp">
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UserConn.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Server\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TextSymbol.cpp">
+      <Filter>Server\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -56,24 +59,24 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Server.h">
-      <Filter>Header Files</Filter>
+      <Filter>Server\Header Files</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="User.h">
-      <Filter>Header Files</Filter>
+      <Filter>Server\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TextFile.h">
-      <Filter>Header Files</Filter>
+      <Filter>Server\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GenericSymbol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TextSymbol.h">
-      <Filter>Generated Files</Filter>
+      <Filter>Server\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="UserConn.h">
-      <Filter>Header Files</Filter>
+      <Filter>Server\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TextSymbol.h">
+      <Filter>Server\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
