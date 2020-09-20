@@ -14,7 +14,7 @@
     <ProjectGuid>{F69FADD6-37CC-4AA9-B645-6369053B2497}</ProjectGuid>
     <RootNamespace>Prova</RootNamespace>
     <Keyword>QtVS_v303</Keyword>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
     <QtMsBuild Condition="'$(QtMsBuild)'=='' or !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
     <ProjectName>ProgettoPDS</ProjectName>
@@ -62,7 +62,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\x64\Release\</OutDir>
     <IntDir>release\</IntDir>
-    <TargetName>Server</TargetName>
+    <TargetName>ProgettoPDS</TargetName>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
@@ -165,12 +165,14 @@
     <ClCompile Include="GenericSymbol.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="StyleSymbol.cpp" />
     <ClCompile Include="TextFile.cpp" />
     <ClCompile Include="TextSymbol.cpp" />
     <ClCompile Include="User.cpp" />
     <ClCompile Include="UserConn.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="StyleSymbol.h" />
     <ClInclude Include="UserConn.h" />
     <QtMoc Include="Server.h" />
     <ClInclude Include="GenericSymbol.h" />

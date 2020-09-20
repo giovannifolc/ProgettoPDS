@@ -51,6 +51,9 @@
     <ClCompile Include="TextSymbol.cpp">
       <Filter>Server\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StyleSymbol.cpp">
+      <Filter>Server\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="GeneratedFiles\moc_predefs.h.cbt">
@@ -76,6 +79,9 @@
       <Filter>Server\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TextSymbol.h">
+      <Filter>Server\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StyleSymbol.h">
       <Filter>Server\Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -20,9 +20,9 @@ void Server::onReadyRead()
 		in >> operation;
 		switch (operation)
 		{
-			//caso per il login
+			
 		case 0:
-		{
+		{	//caso per il login
 			QString username, password;
 			in >> username >> password;
 			bool success = login(username, password, sender);
@@ -36,14 +36,30 @@ void Server::onReadyRead()
 			in >> username >> password >> nickname;
 			registration(username, password, nickname, sender);
 		}
-		case 3:
+		case 2:
 		{
 			//caso per la modifica credenziali
 			QString username, old_password, new_password, nickname;
 			in >> username >> old_password >> new_password >> nickname;
 			//check su identità
 			changeCredentials(username, old_password, new_password, nickname, sender);
-			
+		}
+		case 3:
+		{
+			//caso per l'inserimento o rimozione di un simbolo
+			int insert;
+			QString filename;
+			in >> insert >> filename;
+			if (insert == 1) {
+				insertSymbol(filename, sender, &in);
+			}
+			else {
+				int siteId, counter; 
+				QVector<int> pos;
+				in >> siteId >> counter >> pos;
+				deleteSymbol(filename, siteId, counter, pos, sender);
+			}
+			//voglio rispondere con qualcosa? TODO
 		}
 		default:
 			break;
@@ -51,6 +67,84 @@ void Server::onReadyRead()
 	}
 	else {
 		//visualizzare errore e chiudere connessione?
+	}
+}
+
+void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in) {
+	auto tmp = clients.find(sender);
+	auto tmpFile = files.find(filename);
+	int siteId, counter, style;
+	QVector<int> pos;
+	*in >> siteId >> counter >> pos >> style;
+	//controlli
+	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols();
+		int index = 0; //inizializzo posizione in cui inserire
+		if (vect.size() == 1) {
+			if (generateDecimal(vect[0]->getPosition()) > generateDecimal(pos)) {
+				index = 0;
+			}
+			else {
+				index = 1;
+			}
+		}
+		else {
+			for (int i = 1; i < vect.size(); i++) {
+				if (generateDecimal(vect[i-1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
+					break;
+				}
+			}
+		}
+		if (style == 1) {
+			int bold, italic, underlined, alignment, textSize;
+			QColor color;
+			QString colorName, font;
+			color.setNamedColor(colorName);
+			*in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
+			StyleSymbol* ss = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
+				(italic == 1), (underlined == 1), alignment, textSize, color, font);
+			vect.insert(index, ss);
+		}
+		else {
+			QChar value;
+			*in >> value;
+			TextSymbol* ts = new TextSymbol((style == 1), pos, counter, siteId, value);
+			vect.insert(index, ts);
+		}
+	}
+
+}
+
+double generateDecimal(QVector<int> pos) {
+	double start = 0;
+	for (int i = 0; i < pos.size(); i++) {
+		start += pos[i] * pow(10, -(i + 1));
+	}
+	return start;
+}
+
+void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
+	auto tmp = clients.find(sender);
+	auto tmpFile = files.find(filename);
+	//controlli
+	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols();
+		int index = -1; //inizializzo posizione in cui ho trovato un match
+		for (int i = 0; i < vect.size(); i++) {
+			bool found = true;
+			for (int j = 0; j < vect[i]->getPosition().size(); j++){
+				if (vect[i]->getPosition()[j] != pos[j]) {
+					found = false;
+				}
+			}
+			if (found == true) {
+				index = i;
+				break;
+			}
+		}
+		if (index != -1) {
+			vect.erase(vect.begin() + index);
+		}
 	}
 }
 
@@ -78,7 +172,7 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	else {
 		flag = 0; //fallita autenticazione
 	}
-	out << flag; //ritorno 0 se fallita, 1 se riuscita
+	out << flag << -1; //ritorno 0 se fallita, 1 se riuscita
 	receiver->write(buf);
 }
 
@@ -90,10 +184,10 @@ void Server::registration(QString username, QString password, QString nickname, 
 		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
 		clients.insert(sender, conn);
-		out << 1 << -1; //operazione riuscita e termine
+		out << user->getSiteId() << -1; //operazione riuscita e termine
 	}
 	else {
-		out << 0 << -1; //operazione fallita e termine
+		out << -1; //operazione fallita e termine
 	}
 	sender->write(buf);	
 }
@@ -122,12 +216,11 @@ void Server::sendFiles(QString username, QTcpSocket* receiver, bool success){
 		else {
 			out << 0; //mando 0, ovvero la quantità di nomi di file in arrivo
 		}
-		out << filesForUser[username].size();
 		
 		out << -1; //fine trasmissione
 	}
 	else {
-		out << 0 << -1; //operazione fallita e fine trasmissione
+		out << -1; //operazione fallita e fine trasmissione
 	}
 	receiver->write(buf);
 }
@@ -209,9 +302,32 @@ void Server::load_file(TextFile* f)
 	if (fin.open(QIODevice::ReadOnly)) {
 		QTextStream in(&fin);
 		in >> nRows;
+		TextFile* tf;
 		for (int i = 0; i < nRows; i++) {
-			QVector<int> pos;
+			int siteId, counter, style, pos;
+			in >> siteId >> counter >> style >> pos;
+			QVector<int> vect;
+			vect.push_back(pos);
+			if (style == 1) {
+				int bold, italic, underlined, alignment, textSize;
+				QString colorName;
+				QString font;
+				in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
+				QColor color; 
+				color.setNamedColor(colorName);
+				StyleSymbol* ss = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
+				tf->getSymbols().push_back(ss);
+			}
+			else {
+				QChar value;
+				in >> value;
+				QVector<int> vectPos;
+				vectPos.push_back(pos);
+				TextSymbol* ts = new TextSymbol((style==1), vectPos, counter, siteId, value);
+				tf->getSymbols().push_back(ts);
+			}
 		}
+		fin.close();
 	}
 		
 }
@@ -243,6 +359,6 @@ void Server::onNewConnection() {
 	UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
 	clients.insert(socket, connection);//mappa client connessi
 
-	std::cout << "UTENTI CONNESSI TOT :\t" << clients.size() << std::endl;
+	std::cout << "# of connected users :\t" << clients.size() << std::endl;
 }
 

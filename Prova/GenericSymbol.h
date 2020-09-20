@@ -10,7 +10,7 @@ public:
 	bool isStyle();
 	QVector<int>& getPosition();
 	void setPosition(QVector<int> position);
-
+	bool equals(GenericSymbol *gs);
 protected:
 	bool style;
 	QVector<int> position;

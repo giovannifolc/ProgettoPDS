@@ -2,7 +2,7 @@
 
 #include <QtCore>
 #include <QtNetwork>
-
+#include <QtGui>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -14,6 +14,7 @@
 #include "TextSymbol.h"
 #include "UserConn.h"
 #include "TextFile.h"
+#include "StyleSymbol.h"
 class Server :
     public QObject
 {
@@ -30,6 +31,8 @@ private slots:
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QString username, QTcpSocket* receiver, bool success);
+	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
+	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
 private:
 	QTcpServer* server;
