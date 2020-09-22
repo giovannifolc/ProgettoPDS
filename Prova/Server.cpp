@@ -328,8 +328,7 @@ void Server::load_file(TextFile* f)
 			}
 		}
 		fin.close();
-	}
-		
+	}	
 }
 
 Server::Server(QObject* parent) : QObject(parent) 
