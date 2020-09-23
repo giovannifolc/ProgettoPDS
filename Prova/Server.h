@@ -32,6 +32,10 @@ private slots:
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QString username, QTcpSocket* receiver, bool success);
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
+	void sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket);
+	double generateDecimal(QVector<int> pos);
+	void sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, UserConn*> clients, QMap<QString, TextFile*> files);
+	void sendClient(QString nickname, QTcpSocket* socket);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
 private:
@@ -50,10 +54,10 @@ private:
 	void load_files();
 	void load_file(TextFile* f);
 	void onNewConnection();
-	
 	/*
 	void check_credentials(QTcpSocket* socket, int login_sign, std::string username, std::string password, std::string nickname);
 	void check_file(QTcpSocket* socket, std::string filename);
 	*/
 
 };
+

@@ -23,6 +23,16 @@ void GenericSymbol::setPosition(QVector<int> position)
     this->position = position;
 }
 
+int GenericSymbol::getCounter()
+{
+    return counter;
+}
+
+int GenericSymbol::getSiteId()
+{
+    return siteId;
+}
+
 bool GenericSymbol::equals(GenericSymbol* gs)
 {
     bool tmp = ((gs->siteId == siteId) && (gs->counter == counter));

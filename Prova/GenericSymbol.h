@@ -10,6 +10,8 @@ public:
 	bool isStyle();
 	QVector<int>& getPosition();
 	void setPosition(QVector<int> position);
+	int getCounter();
+	int getSiteId();
 	bool equals(GenericSymbol *gs);
 protected:
 	bool style;

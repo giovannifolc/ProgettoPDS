@@ -61,6 +61,12 @@ void Server::onReadyRead()
 			}
 			//voglio rispondere con qualcosa? TODO
 		}
+		case 4:
+		{	//richiesta di un file da parte di un client
+			QString filename;
+			in >> filename;
+			sendFile(filename, sender, clients, files);
+		}
 		default:
 			break;
 		}
@@ -70,11 +76,60 @@ void Server::onReadyRead()
 	}
 }
 
+void Server::sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, UserConn*> clients, QMap<QString, TextFile*> files) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	
+	if (files.contains(filename)) {
+
+		TextFile* tf = files.find(filename).value();
+
+		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
+
+		socket->write(buf);
+		for (auto s : tf->getSymbols()) {
+			sendSymbol(s, true, socket);
+		}
+		//mando a tutti i client con lo stesso file aperto un avviso che c'è un nuovo connesso
+		for (auto conn : tf->getConnections()) {
+			sendClient(clients.find(socket).value()->getNickname(), conn);
+		}
+		/*for (auto client : clients) {
+			if (client->getFilename() == filename) {
+				sendClient(clients.find(socket).value()->getNickname(), client->getSocket());
+			}
+		}*/
+		
+	}
+	else {
+		//creo un nuovo file
+		if (clients.contains(socket)) {
+			TextFile* tf = new TextFile(filename, socket);
+			files.insert(filename, tf);
+		}
+	}
+	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
+	if (clients.contains(socket)) {
+		files.find(filename).value()->addConnection(socket);
+		clients.find(socket).value()->setFilename(filename);
+	}
+}
+
+void Server::sendClient(QString nickname, QTcpSocket* socket) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+
+	out << 8 << nickname; //8 lo uso come flag per indicare un nuovo connesso
+
+	socket->write(buf);
+}
+
 void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in) {
 	auto tmp = clients.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter, style;
 	QVector<int> pos;
+	GenericSymbol* sym;
 	*in >> siteId >> counter >> pos >> style;
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
@@ -101,21 +156,54 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 			QString colorName, font;
 			color.setNamedColor(colorName);
 			*in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
-			StyleSymbol* ss = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
+			sym = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
 				(italic == 1), (underlined == 1), alignment, textSize, color, font);
-			vect.insert(index, ss);
+			vect.insert(index, sym);
 		}
 		else {
 			QChar value;
 			*in >> value;
-			TextSymbol* ts = new TextSymbol((style == 1), pos, counter, siteId, value);
-			vect.insert(index, ts);
+			sym = new TextSymbol((style == 1), pos, counter, siteId, value);
+			vect.insert(index, sym);
+		}
+		//mando agli altri client con il file aperto
+		for (auto client : clients) {
+			if (client->getFilename() == filename) {
+				sendSymbol(sym, true, client->getSocket());
+			}
 		}
 	}
 
 }
+void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	int ins;
+	if (socket->state() != QAbstractSocket::ConnectedState)	
+		return;
+	if (insert) {
+		ins = 1;
+	}
+	else {
+		ins = 0;
+	}
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
 
-double generateDecimal(QVector<int> pos) {
+	if (symbol->isStyle()) {
+		StyleSymbol* ss = dynamic_cast<StyleSymbol*>(symbol);
+		/*posso passare dei bool o devo passare int corrispondenti?*/
+		out << ss->isStyle() << ss->getPosition() << ss->getCounter() << ss->getSiteId() << ss->isBold() << ss->isItalic() << ss->isUnderlined()
+			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
+	}
+	else {
+		TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
+		out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
+	}
+	socket->write(buf);
+}
+
+
+double Server::generateDecimal(QVector<int> pos) {
 	double start = 0;
 	for (int i = 0; i < pos.size(); i++) {
 		start += pos[i] * pow(10, -(i + 1));
@@ -143,8 +231,16 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 			}
 		}
 		if (index != -1) {
+			GenericSymbol* sym = new GenericSymbol(vect[index]->isStyle(), vect[index]->getPosition(), vect[index]->getCounter(), vect[index]->getSiteId());
 			vect.erase(vect.begin() + index);
+			//inoltro la cancellazione agli altri client interessati
+			for (auto client : clients) {
+				if (client->getFilename() == filename) {
+					sendSymbol(sym, false, client->getSocket()); //false per dire che è una cancellazione
+				}
+			}
 		}
+		
 	}
 }
 
@@ -216,11 +312,10 @@ void Server::sendFiles(QString username, QTcpSocket* receiver, bool success){
 		else {
 			out << 0; //mando 0, ovvero la quantità di nomi di file in arrivo
 		}
-		
-		out << -1; //fine trasmissione
+	
 	}
 	else {
-		out << -1; //operazione fallita e fine trasmissione
+		out << 0; //operazione fallita e fine trasmissione
 	}
 	receiver->write(buf);
 }
@@ -303,6 +398,7 @@ void Server::load_file(TextFile* f)
 		QTextStream in(&fin);
 		in >> nRows;
 		TextFile* tf;
+		GenericSymbol* sym;
 		for (int i = 0; i < nRows; i++) {
 			int siteId, counter, style, pos;
 			in >> siteId >> counter >> style >> pos;
@@ -315,16 +411,16 @@ void Server::load_file(TextFile* f)
 				in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
 				QColor color; 
 				color.setNamedColor(colorName);
-				StyleSymbol* ss = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
-				tf->getSymbols().push_back(ss);
+				sym = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
+				tf->getSymbols().push_back(sym);
 			}
 			else {
 				QChar value;
 				in >> value;
 				QVector<int> vectPos;
 				vectPos.push_back(pos);
-				TextSymbol* ts = new TextSymbol((style==1), vectPos, counter, siteId, value);
-				tf->getSymbols().push_back(ts);
+				sym = new TextSymbol((style==1), vectPos, counter, siteId, value);
+				tf->getSymbols().push_back(sym);
 			}
 		}
 		fin.close();
