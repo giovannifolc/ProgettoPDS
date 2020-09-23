@@ -280,10 +280,10 @@ void Server::registration(QString username, QString password, QString nickname, 
 		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
 		clients.insert(sender, conn);
-		out << user->getSiteId() << -1; //operazione riuscita e termine
+		out << 1 << user->getSiteId(); //operazione riuscita e termine
 	}
 	else {
-		out << -1; //operazione fallita e termine
+		out << 0; //operazione fallita e termine
 	}
 	sender->write(buf);	
 }
