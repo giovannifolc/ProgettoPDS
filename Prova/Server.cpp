@@ -293,7 +293,7 @@ void Server::sendFiles(QString username, QTcpSocket* receiver, bool success){
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	out << 0;//invio codice operazione
-	
+	std::cout << "ciao";
 	if (success) {
 		out << 1; //operazione riuscita
 		
@@ -352,6 +352,7 @@ void Server::load_subs()
 		QTextStream in(&fin);
 		while (!in.atEnd())
 		{
+			QDataStream in;
 			in >> username >> pwd >> nickname >> id;
 			User* user = new User(username, pwd, nickname, id);
 			subs.insert(username, user);

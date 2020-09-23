@@ -22,6 +22,8 @@ class Server :
 public:
         explicit Server(QObject* parent = 0);
         ~Server();
+Q_SIGNALS:/*definizione di segnali*/
+	void closed();
 
 private slots:
 	void onNewConnection();
@@ -53,11 +55,7 @@ private:
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
-	void onNewConnection();
-	/*
-	void check_credentials(QTcpSocket* socket, int login_sign, std::string username, std::string password, std::string nickname);
-	void check_file(QTcpSocket* socket, std::string filename);
-	*/
+	
 
 };
 
