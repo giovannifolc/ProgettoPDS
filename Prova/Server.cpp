@@ -28,6 +28,7 @@ void Server::onReadyRead()
 			bool success = login(username, password, sender);
 			//se ho successo ritorno l'elenco di file, altrimenti un messaggio di fail
 			sendFiles(username, sender, success);
+			break;
 			
 		}
 		case 1: {
@@ -35,6 +36,7 @@ void Server::onReadyRead()
 			QString username, password, nickname;
 			in >> username >> password >> nickname;
 			registration(username, password, nickname, sender);
+			break;
 		}
 		case 2:
 		{
@@ -43,6 +45,7 @@ void Server::onReadyRead()
 			in >> username >> old_password >> new_password >> nickname;
 			//check su identità
 			changeCredentials(username, old_password, new_password, nickname, sender);
+			break;
 		}
 		case 3:
 		{
@@ -59,6 +62,7 @@ void Server::onReadyRead()
 				in >> siteId >> counter >> pos;
 				deleteSymbol(filename, siteId, counter, pos, sender);
 			}
+			break;
 			//voglio rispondere con qualcosa? TODO
 		}
 		case 4:
@@ -66,6 +70,7 @@ void Server::onReadyRead()
 			QString filename;
 			in >> filename;
 			sendFile(filename, sender, clients, files);
+			break;
 		}
 		default:
 			break;
