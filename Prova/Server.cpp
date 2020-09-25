@@ -364,8 +364,8 @@ void Server::load_subs()
 		while (!in.atEnd())
 		{   
 			
-			in >> username >> pwd >> nickname >> id;
-			User* user = new User(username, pwd, nickname, id);
+			in >> username >> password >> nickname >> siteId;
+			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
 		}
 		fin.close();
