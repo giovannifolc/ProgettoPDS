@@ -354,8 +354,8 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 void Server::load_subs()
 {
 	QFile fin("subscribers.txt");
-	QString username, pwd, nickname;
-	int id; 
+	QString username, password, nickname;
+	int siteId;
 
 	std::cout << "Loading subscription...\n";
 
