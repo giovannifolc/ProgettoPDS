@@ -2,6 +2,7 @@
 #include "Server.h"
 #include "UserConn.h"
 #include "User.h"
+#include <iostream>
 
 
 Server::~Server() {
@@ -288,6 +289,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 		User* user = new User(username, password, nickname, siteIdCounter++);
 		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
+		addNewUser();
 		clients.insert(sender, conn);
 		out << 1 << user->getSiteId(); //operazione riuscita e termine
 	}
@@ -357,11 +359,11 @@ void Server::load_subs()
 
 	std::cout << "Loading subscription...\n";
 
-	if (fin.open(QIODevice::ReadOnly)) {
-		QTextStream in(&fin);
+	if (fin.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		QDataStream in(&fin);
 		while (!in.atEnd())
-		{
-			QDataStream in;
+		{   
+			
 			in >> username >> password >> nickname >> siteId;
 			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
@@ -465,5 +467,18 @@ void Server::onNewConnection() {
 	clients.insert(socket, connection);//mappa client connessi
 
 	std::cout << "# of connected users :\t" << clients.size() << std::endl;
+}
+
+void Server::addNewUser() {
+	QFile file("subscribers.txt");
+	if (file.open(QIODevice::WriteOnly)) {
+		QDataStream output(&file);
+		for (User* u : subs.values()) {
+			output << u->getUsername() << u->getPassword() << u->getNickname() << (qint32)u->getSiteId();
+		}
+		file.close();
+	}
+	else
+		std::cout << "File subscribers.txt non aperto" << std::endl;
 }
 
