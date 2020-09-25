@@ -348,8 +348,8 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 void Server::load_subs()
 {
 	QFile fin("subscribers.txt");
-	QString username, pwd, nickname;
-	int id;
+	QString username, password, nickname;
+	int siteId;
 
 	std::cout << "Loading subscription...\n";
 
@@ -358,8 +358,8 @@ void Server::load_subs()
 		while (!in.atEnd())
 		{
 			QDataStream in;
-			in >> username >> pwd >> nickname >> id;
-			User* user = new User(username, pwd, nickname, id);
+			in >> username >> password >> nickname >> siteId;
+			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
 		}
 		fin.close();
