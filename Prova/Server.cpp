@@ -360,11 +360,17 @@ void Server::load_subs()
 	std::cout << "Loading subscription...\n";
 
 	if (fin.open(QIODevice::ReadOnly | QIODevice::Text)) {
-		QDataStream in(&fin);
+		QTextStream in(&fin);
 		while (!in.atEnd())
 		{   
+		
+			QString line = in.readLine();
 			
-			in >> username >> password >> nickname >> siteId;
+			username = line.split(" ")[0]; 
+			password = line.split(" ")[1];
+			nickname = line.split(" ")[2];
+			siteId = line.split(" ")[3].toInt();
+
 			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
 		}
@@ -471,10 +477,10 @@ void Server::onNewConnection() {
 
 void Server::addNewUser() {
 	QFile file("subscribers.txt");
-	if (file.open(QIODevice::WriteOnly)) {
-		QDataStream output(&file);
+	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+		QTextStream output(&file);
 		for (User* u : subs.values()) {
-			output << u->getUsername() << u->getPassword() << u->getNickname() << (qint32)u->getSiteId();
+			output << u->getUsername() << " " << u->getPassword() << " " << u->getNickname() << " " << u->getSiteId() << "\n";
 		}
 		file.close();
 	}
