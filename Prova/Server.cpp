@@ -355,7 +355,7 @@ void Server::load_subs()
 {
 	QFile fin("subscribers.txt");
 	QString username, pwd, nickname;
-	int id;
+	int id; 
 
 	std::cout << "Loading subscription...\n";
 
