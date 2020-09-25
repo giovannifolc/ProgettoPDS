@@ -55,6 +55,7 @@ private:
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
+	void addNewUser();
 	
 
 };
