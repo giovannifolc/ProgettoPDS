@@ -2,10 +2,14 @@
 #include "Server.h"
 #include "UserConn.h"
 #include "User.h"
-Server::~Server() {}
+
+
+Server::~Server() {
+}
 
 void Server::onDisconnected()
 {
+
 }
 
 void Server::onReadyRead()
