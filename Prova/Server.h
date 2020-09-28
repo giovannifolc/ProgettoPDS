@@ -56,7 +56,7 @@ private:
 	void load_files();
 	void load_file(TextFile* f);
 	void addNewUser();
-	void addNewFile();
+	void addNewFile(QString filename, QString user);
 	
 
 };
