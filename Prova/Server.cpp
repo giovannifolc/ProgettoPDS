@@ -304,6 +304,7 @@ void Server::sendFiles(QString username, QTcpSocket* receiver, bool success){
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	out << 0;//invio codice operazione
+	std::cout << "ciao";
 	if (success) {
 		out << 1; //operazione riuscita
 		
