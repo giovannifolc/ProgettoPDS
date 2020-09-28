@@ -292,10 +292,10 @@ void Server::registration(QString username, QString password, QString nickname, 
 		subs.insert(username, user);
 		addNewUser();
 		clients.insert(sender, conn);
-		out << 1 << user->getSiteId(); //operazione riuscita e termine
+		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
 	}
 	else {
-		out << 0; //operazione fallita e termine
+		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
 	}
 	sender->write(buf);	
 }
