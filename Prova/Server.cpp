@@ -116,6 +116,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, Us
 		if (clients.contains(socket)) {
 			TextFile* tf = new TextFile(filename, socket);
 			files.insert(filename, tf);
+			addNewFile(filename, clients.find(socket).value()->getUsername());
 		}
 	}
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
@@ -389,7 +390,7 @@ void Server::load_files()
 		
 	std::cout << "Loading files..\n";
 
-	if (fin.open(QIODevice::ReadOnly)) {
+	if (fin.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		QTextStream in(&fin);
 		while (!in.atEnd())
 		{	//stile file: nome_file owner1 owner2 ... per ogni riga
@@ -400,6 +401,7 @@ void Server::load_files()
 					filesForUser[str].append(words[0]);
 				}
 			}
+			filename = words[0];
 			TextFile* f = new TextFile(words[0]);
 			load_file(f);
 			files.insert(filename, f);
@@ -488,3 +490,14 @@ void Server::addNewUser() {
 		std::cout << "File subscribers.txt non aperto" << std::endl;
 }
 
+void Server::addNewFile(QString filename, QString user) {
+	QFile file("all_files.txt");
+	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
+
+		QTextStream output(&file);
+	
+		output << filename << " " <<user << "\n";
+	}
+
+		file.close();
+	}
