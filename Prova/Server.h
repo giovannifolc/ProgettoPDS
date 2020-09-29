@@ -27,7 +27,8 @@ Q_SIGNALS:/*definizione di segnali*/
 
 private slots:
 	void onNewConnection();
-	void onDisconnected();
+	void onDisconnected(QTcpSocket *socket);
+	void saveFile(TextFile *f);
 	void onReadyRead();
 	void changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver);
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
@@ -37,7 +38,7 @@ private slots:
 	void sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket);
 	double generateDecimal(QVector<int> pos);
 	void sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, UserConn*> clients, QMap<QString, TextFile*> files);
-	void sendClient(QString nickname, QTcpSocket* socket);
+	void sendClient(QString nickname, QTcpSocket* socket, bool insert);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
 private:

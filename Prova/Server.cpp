@@ -8,9 +8,61 @@
 Server::~Server() {
 }
 
-void Server::onDisconnected()
+void Server::onDisconnected(QTcpSocket *socket)
 {
+	QString filename = clients.find(socket).value()->getFilename();
+	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
+		TextFile *f = files.find(filename).value();
+		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
+			saveFile(f);
+		}
+		f->removeConnection(socket);//rimozione utente dai connessi al file
+		std::cout << "UTENTI CONNESSI A " << filename.toStdString() << ":\t" << f->getConnections().size() << std::endl;
+		sendClient(clients.find(socket).value()->getNickname(), socket, false);
+	}
+	clients.remove(socket);
+	std::cout << "UTENTI CONNESSI:\t" << clients.size() << std::endl;
+}
 
+void Server::saveFile(TextFile *f) {
+	QString filename = f->getFilename();
+	QFile file(filename);
+	if (file.open(QIODevice::WriteOnly))
+	{
+		QTextStream stream(&file);
+		int pos = 0;
+		for (auto symbol : files.find(filename).value()->getSymbols()) {
+			if (symbol->isStyle()) {
+				stream << 1;
+				StyleSymbol* ss = dynamic_cast<StyleSymbol*>(symbol);
+				/*posso passare dei bool o devo passare int corrispondenti?*/
+				stream << ss->isStyle() << pos++ << ss->getCounter() << ss->getSiteId(); 
+				if (ss->isBold()) {
+					stream << 1;
+				}else {
+					stream << 0;
+				}
+				if(ss->isItalic()){
+					stream << 1;
+				}
+				else {
+					stream << 0;
+				} 
+				if (ss->isUnderlined()) {
+					stream << 1;
+				}
+				else {
+					stream << 0;
+				}
+				stream << ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont() << endl;
+			}
+			else {
+				TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
+				stream << 0; //non è stile
+				stream << pos++ << ts->getCounter() << ts->getSiteId() << ts->getValue() << endl;
+			}
+		}
+	}
 }
 
 void Server::onReadyRead()
@@ -102,7 +154,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, Us
 		}
 		//mando a tutti i client con lo stesso file aperto un avviso che c'è un nuovo connesso
 		for (auto conn : tf->getConnections()) {
-			sendClient(clients.find(socket).value()->getNickname(), conn);
+			sendClient(clients.find(socket).value()->getNickname(), conn, true);
 		}
 		/*for (auto client : clients) {
 			if (client->getFilename() == filename) {
@@ -126,12 +178,17 @@ void Server::sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, Us
 	}
 }
 
-void Server::sendClient(QString nickname, QTcpSocket* socket) {
+void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 
 	out << 8 << nickname; //8 lo uso come flag per indicare un nuovo connesso
-
+	if (insert) {
+		out << 1; //deve aggiungere la persona
+	}
+	else {
+		out << 0; //deve rimuovere la persona
+	}
 	socket->write(buf);
 }
 
@@ -456,7 +513,6 @@ Server::Server(QObject* parent) : QObject(parent)
 	load_files();
 
 	connect(server, &QTcpServer::newConnection, this, &Server::onNewConnection);
-
 	server->listen(QHostAddress::Any, 49002);
 	if (server->isListening()) {
 		std::cout << "Server is listening on port: " << server->serverPort() << std::endl;
@@ -467,7 +523,7 @@ Server::Server(QObject* parent) : QObject(parent)
 void Server::onNewConnection() {
 	QTcpSocket* socket  = server->nextPendingConnection();
 	
-	connect(socket, SIGNAL(disconnected()), SLOT(onDisconnected()));
+	connect(socket, SIGNAL(disconnected()), SLOT(onDisconnected(socket)));
 	connect(socket, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 
 	//addConnection
