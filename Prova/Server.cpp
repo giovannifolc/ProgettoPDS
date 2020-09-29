@@ -185,6 +185,7 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 	}
 
 }
+
 void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -415,7 +416,6 @@ void Server::load_file(TextFile* f)
 	if (fin.open(QIODevice::ReadOnly)) {
 		QTextStream in(&fin);
 		in >> nRows;
-		TextFile* tf;
 		GenericSymbol* sym;
 		for (int i = 0; i < nRows; i++) {
 			int siteId, counter, style, pos;
@@ -430,7 +430,7 @@ void Server::load_file(TextFile* f)
 				QColor color; 
 				color.setNamedColor(colorName);
 				sym = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
-				tf->getSymbols().push_back(sym);
+				f->getSymbols().push_back(sym);
 			}
 			else {
 				QChar value;
@@ -438,7 +438,7 @@ void Server::load_file(TextFile* f)
 				QVector<int> vectPos;
 				vectPos.push_back(pos);
 				sym = new TextSymbol((style==1), vectPos, counter, siteId, value);
-				tf->getSymbols().push_back(sym);
+				f->getSymbols().push_back(sym);
 			}
 		}
 		fin.close();
