@@ -12,6 +12,7 @@ public:
 	~TextFile();
 	QString getFilename();
 	QVector<GenericSymbol*> getSymbols();
+	void addSymbol(GenericSymbol* symbol);
 	QVector<QTcpSocket*> getConnections();
 	void addConnection(QTcpSocket* connection);
 	void removeConnection(QTcpSocket* connection);

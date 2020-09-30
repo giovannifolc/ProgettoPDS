@@ -181,13 +181,13 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 			*in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
 			sym = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
 				(italic == 1), (underlined == 1), alignment, textSize, color, font);
-			vect.insert(index, sym);
+			tmpFile.value()->addSymbol(sym);
 		}
 		else {
 			QChar value;
 			*in >> value;
 			sym = new TextSymbol((style == 1), pos, counter, siteId, value);
-			vect.insert(index, sym);
+			tmpFile.value()->addSymbol(sym);
 		}
 		//mando agli altri client con il file aperto
 		for (auto client : clients) {
