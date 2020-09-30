@@ -16,6 +16,8 @@ public:
 	QVector<QTcpSocket*> getConnections();
 	void addConnection(QTcpSocket* connection);
 	void removeConnection(QTcpSocket* connection);
+	void pushBackSymbol(GenericSymbol* symbol);
+
 private:
 	QString filename;
 	QVector<GenericSymbol*> symbols;

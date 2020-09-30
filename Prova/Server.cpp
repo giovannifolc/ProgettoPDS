@@ -433,9 +433,10 @@ void Server::load_file(TextFile* f)
 		GenericSymbol* sym;
 		for (int i = 0; i < nRows; i++) {
 			int siteId, counter, style, pos;
-			in >> siteId >> counter >> style >> pos;
+			in >> style >> pos >> counter >> siteId;
 			QVector<int> vect;
 			vect.push_back(pos);
+
 			if (style == 1) {
 				int bold, italic, underlined, alignment, textSize;
 				QString colorName;
@@ -444,15 +445,15 @@ void Server::load_file(TextFile* f)
 				QColor color; 
 				color.setNamedColor(colorName);
 				sym = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
-				f->getSymbols().push_back(sym);
+				f->pushBackSymbol(sym);
 			}
 			else {
 				QChar value;
+				in >> value; //salto lo spazio che separa pos da value
 				in >> value;
-				QVector<int> vectPos;
-				vectPos.push_back(pos);
-				sym = new TextSymbol((style==1), vectPos, counter, siteId, value);
-				f->getSymbols().push_back(sym);
+				
+				sym = new TextSymbol((style==1), vect, counter, siteId, value);
+				f->pushBackSymbol(sym);
 			}
 		}
 		fin.close();

@@ -70,3 +70,8 @@ void TextFile::removeConnection(QTcpSocket* connection)
 		connections.end());
 }
 
+void TextFile::pushBackSymbol(GenericSymbol* sym) {
+	
+	symbols.push_back(sym);
+} 
+
