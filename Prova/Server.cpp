@@ -135,7 +135,7 @@ void Server::sendClient(QString nickname, QTcpSocket* socket) {
 	socket->write(buf);
 }
 
-void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in) {
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
 	auto tmp = clients.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter, style;
@@ -144,9 +144,9 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 	*in >> siteId >> counter >> pos >> style;
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols();
+		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols(); // ATTENZIONE ERRORE, QUESTA è UNA COPIA NON UN RIFERIMENTO.
 		int index = 0; //inizializzo posizione in cui inserire
-		if (vect.size() == 1) {
+		/*if (vect.size() == 1) {
 			if (generateDecimal(vect[0]->getPosition()) > generateDecimal(pos)) {
 				index = 0;
 			}
@@ -156,11 +156,23 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 		}
 		else {
 			for (int i = 1; i < vect.size(); i++) {
-				if (generateDecimal(vect[i-1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
+				if (generateDecimal(vect[i - 1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
 					break;
 				}
 			}
+		}*/
+		if (vect.size() == 0) {
+			index = 0;
 		}
+		if (vect.size() == 1) {
+			if (vect[0]->getPosition() > pos) {
+				index = 0;
+			}
+			else {
+				index = 1;
+			}
+		}
+
 		if (style == 1) {
 			int bold, italic, underlined, alignment, textSize;
 			QColor color;
@@ -184,7 +196,6 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 			}
 		}
 	}
-
 }
 
 void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) {
@@ -342,6 +353,7 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
+			conn->setSiteId(tmp.value()->getSiteId());
 			return true;
 		}
 		else {
