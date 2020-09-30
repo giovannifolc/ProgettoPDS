@@ -129,6 +129,14 @@ void Server::onReadyRead()
 			sendFile(filename, sender, clients, files);
 			break;
 		}
+		case 5:
+		{
+			//segnalazione di disconnessione da un file
+			QString filename;
+			in >> filename;
+			clients.find(sender).value()->setFilename("");
+			break;
+		}
 		default:
 			break;
 		}
