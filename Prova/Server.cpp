@@ -219,8 +219,9 @@ void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) 
 			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
 	}
 	else {
-		TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
-		out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
+		//TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
+		//out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
+		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
 	}
 	socket->write(buf);
 }
