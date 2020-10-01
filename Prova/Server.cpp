@@ -138,7 +138,8 @@ void Server::sendClient(QString nickname, QTcpSocket* socket) {
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
 	auto tmp = clients.find(sender);
 	auto tmpFile = files.find(filename);
-	int siteId, counter, style;
+	int siteId, counter;
+	bool style;
 	QVector<int> pos;
 	GenericSymbol* sym;
 	*in >> siteId >> counter >> pos >> style;
@@ -173,14 +174,13 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 			}
 		}
 
-		if (style == 1) {
-			int bold, italic, underlined, alignment, textSize;
+		if (style == true) {
+			bool bold, italic, underlined;
+			int alignment, textSize;
 			QColor color;
-			QString colorName, font;
-			color.setNamedColor(colorName);
-			*in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
-			sym = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
-				(italic == 1), (underlined == 1), alignment, textSize, color, font);
+			QString font;
+			*in >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
+			sym = new StyleSymbol(style , pos, counter, siteId, bold, italic, underlined, alignment, textSize, color, font);
 			tmpFile.value()->addSymbol(sym);
 		}
 		else {
