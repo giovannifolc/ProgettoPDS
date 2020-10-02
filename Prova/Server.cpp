@@ -8,8 +8,9 @@
 Server::~Server() {
 }
 
-void Server::onDisconnected(QTcpSocket *socket)
+void Server::onDisconnected()
 {
+	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = clients.find(socket).value()->getFilename();
 	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
 		TextFile *f = files.find(filename).value();
@@ -30,7 +31,7 @@ void Server::saveFile(TextFile *f) {
 	if (file.open(QIODevice::WriteOnly))
 	{
 		QTextStream stream(&file);
-		int pos = 0;
+		int pos = 1;
 		for (auto symbol : files.find(filename).value()->getSymbols()) {
 			if (symbol->isStyle()) {
 				stream << 1;
@@ -63,6 +64,7 @@ void Server::saveFile(TextFile *f) {
 			}
 		}
 	}
+	file.close();
 }
 
 void Server::onReadyRead()
@@ -126,7 +128,7 @@ void Server::onReadyRead()
 		{	//richiesta di un file da parte di un client
 			QString filename;
 			in >> filename;
-			sendFile(filename, sender, clients, files);
+			sendFile(filename, sender);
 			break;
 		}
 		case 5:
@@ -135,6 +137,7 @@ void Server::onReadyRead()
 			QString filename;
 			in >> filename;
 			clients.find(sender).value()->setFilename("");
+			saveIfLast(filename);
 			break;
 		}
 		default:
@@ -146,7 +149,21 @@ void Server::onReadyRead()
 	}
 }
 
-void Server::sendFile(QString filename, QTcpSocket* socket, QMap<QTcpSocket*, UserConn*> clients, QMap<QString, TextFile*> files) {
+void Server::saveIfLast(QString filename) {
+	bool salva = true;
+	for (auto client : clients) {
+		if (client->getFilename() == filename) {
+			salva = false;
+		}
+	}
+	if (salva) {
+		if (files.find(filename) != files.end()) {
+			saveFile(files.find(filename).value());
+		}
+	}
+}
+
+void Server::sendFile(QString filename, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	
@@ -531,8 +548,8 @@ Server::Server(QObject* parent) : QObject(parent)
 void Server::onNewConnection() {
 	QTcpSocket* socket  = server->nextPendingConnection();
 	
-	connect(socket, SIGNAL(disconnected()), SLOT(onDisconnected(socket)));
-	connect(socket, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+	connect(socket, &QTcpSocket::disconnected, this, &Server::onDisconnected);
+	connect(socket, &QTcpSocket::readyRead, this, &Server::onReadyRead);
 
 	//addConnection
 	UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
