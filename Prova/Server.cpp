@@ -145,35 +145,6 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 	*in >> siteId >> counter >> pos >> style;
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols(); // ATTENZIONE ERRORE, QUESTA è UNA COPIA NON UN RIFERIMENTO.
-		int index = 0; //inizializzo posizione in cui inserire
-		/*if (vect.size() == 1) {
-			if (generateDecimal(vect[0]->getPosition()) > generateDecimal(pos)) {
-				index = 0;
-			}
-			else {
-				index = 1;
-			}
-		}
-		else {
-			for (int i = 1; i < vect.size(); i++) {
-				if (generateDecimal(vect[i - 1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
-					break;
-				}
-			}
-		}*/
-		if (vect.size() == 0) {
-			index = 0;
-		}
-		if (vect.size() == 1) {
-			if (vect[0]->getPosition() > pos) {
-				index = 0;
-			}
-			else {
-				index = 1;
-			}
-		}
-
 		if (style == true) {
 			bool bold, italic, underlined;
 			int alignment, textSize;
@@ -226,14 +197,6 @@ void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) 
 	socket->write(buf);
 }
 
-
-double Server::generateDecimal(QVector<int> pos) {
-	double start = 0;
-	for (int i = 0; i < pos.size(); i++) {
-		start += pos[i] * pow(10, -(i + 1));
-	}
-	return start;
-}
 
 void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
 	auto tmp = clients.find(sender);
