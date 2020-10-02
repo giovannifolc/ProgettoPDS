@@ -37,7 +37,6 @@ private slots:
 	void sendFiles(QString username, QTcpSocket* receiver, bool success);
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
 	void sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket);
-	double generateDecimal(QVector<int> pos);
 	void sendFile(QString filename, QTcpSocket* socket);
 	void sendClient(QString nickname, QTcpSocket* socket, bool insert);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
@@ -47,19 +46,18 @@ private:
 	int siteIdCounter = 0; //devo salvarlo da qualche parte in caso di crash?
 
 	QMap<QTcpSocket*, UserConn*> clients;//client connessi
-	
+
 	QMap<QString, TextFile*> files;//file in archivio
 
 	QMap<QString, User*> subs;//utenti iscritti
-	
+
 	QMap<QString, QVector<QString>> filesForUser;
-	
+
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
 	void addNewUser();
 	void addNewFile(QString filename, QString user);
-	
+
 
 };
-
