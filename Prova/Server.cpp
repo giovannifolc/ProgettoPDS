@@ -217,18 +217,19 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 	socket->write(buf);
 }
 
-void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in) {
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
 	auto tmp = clients.find(sender);
 	auto tmpFile = files.find(filename);
-	int siteId, counter, style;
+	int siteId, counter;
+	bool style;
 	QVector<int> pos;
 	GenericSymbol* sym;
 	*in >> siteId >> counter >> pos >> style;
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols();
+		QVector<GenericSymbol*> vect = tmpFile.value()->getSymbols(); // ATTENZIONE ERRORE, QUESTA è UNA COPIA NON UN RIFERIMENTO.
 		int index = 0; //inizializzo posizione in cui inserire
-		if (vect.size() == 1) {
+		/*if (vect.size() == 1) {
 			if (generateDecimal(vect[0]->getPosition()) > generateDecimal(pos)) {
 				index = 0;
 			}
@@ -238,26 +239,37 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 		}
 		else {
 			for (int i = 1; i < vect.size(); i++) {
-				if (generateDecimal(vect[i-1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
+				if (generateDecimal(vect[i - 1]->getPosition()) < generateDecimal(pos) && generateDecimal(pos) > generateDecimal(vect[i]->getPosition())) {
 					break;
 				}
 			}
+		}*/
+		if (vect.size() == 0) {
+			index = 0;
 		}
-		if (style == 1) {
-			int bold, italic, underlined, alignment, textSize;
+		if (vect.size() == 1) {
+			if (vect[0]->getPosition() > pos) {
+				index = 0;
+			}
+			else {
+				index = 1;
+			}
+		}
+
+		if (style == true) {
+			bool bold, italic, underlined;
+			int alignment, textSize;
 			QColor color;
-			QString colorName, font;
-			color.setNamedColor(colorName);
-			*in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
-			sym = new StyleSymbol((style == 1), pos, counter, siteId, (bold == 1),
-				(italic == 1), (underlined == 1), alignment, textSize, color, font);
-			vect.insert(index, sym);
+			QString font;
+			*in >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
+			sym = new StyleSymbol(style , pos, counter, siteId, bold, italic, underlined, alignment, textSize, color, font);
+			tmpFile.value()->addSymbol(sym);
 		}
 		else {
 			QChar value;
 			*in >> value;
 			sym = new TextSymbol((style == 1), pos, counter, siteId, value);
-			vect.insert(index, sym);
+			tmpFile.value()->addSymbol(sym);
 		}
 		//mando agli altri client con il file aperto
 		for (auto client : clients) {
@@ -266,7 +278,6 @@ void Server::insertSymbol( QString filename, QTcpSocket* sender, QDataStream* in
 			}
 		}
 	}
-
 }
 
 void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) {
@@ -290,8 +301,9 @@ void Server::sendSymbol(GenericSymbol* symbol, bool insert, QTcpSocket* socket) 
 			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
 	}
 	else {
-		TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
-		out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
+		//TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
+		//out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
+		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
 	}
 	socket->write(buf);
 }
@@ -424,6 +436,7 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
+			conn->setSiteId(tmp.value()->getSiteId());
 			return true;
 		}
 		else {
@@ -503,9 +516,10 @@ void Server::load_file(TextFile* f)
 		GenericSymbol* sym;
 		for (int i = 0; i < nRows; i++) {
 			int siteId, counter, style, pos;
-			in >> siteId >> counter >> style >> pos;
+			in >> style >> pos >> counter >> siteId;
 			QVector<int> vect;
 			vect.push_back(pos);
+
 			if (style == 1) {
 				int bold, italic, underlined, alignment, textSize;
 				QString colorName;
@@ -514,15 +528,15 @@ void Server::load_file(TextFile* f)
 				QColor color; 
 				color.setNamedColor(colorName);
 				sym = new StyleSymbol((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
-				f->getSymbols().push_back(sym);
+				f->pushBackSymbol(sym);
 			}
 			else {
 				QChar value;
+				in >> value; //salto lo spazio che separa pos da value
 				in >> value;
-				QVector<int> vectPos;
-				vectPos.push_back(pos);
-				sym = new TextSymbol((style==1), vectPos, counter, siteId, value);
-				f->getSymbols().push_back(sym);
+				
+				sym = new TextSymbol((style==1), vect, counter, siteId, value);
+				f->pushBackSymbol(sym);
 			}
 		}
 		fin.close();
