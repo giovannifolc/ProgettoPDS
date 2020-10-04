@@ -18,12 +18,12 @@ QString TextFile::getFilename()
 	return filename;
 }
 
-QVector<GenericSymbol*> TextFile::getSymbols()
+QVector<std::shared_ptr<GenericSymbol>> TextFile::getSymbols()
 {
 	return symbols;
 }
 
-void TextFile::addSymbol(GenericSymbol* newSymbol) {
+void TextFile::addSymbol(std::shared_ptr<GenericSymbol> newSymbol) {
 	int index = symbols.size();  
 	if (symbols.size() == 0) {
 		index = 0;
@@ -50,6 +50,36 @@ void TextFile::addSymbol(GenericSymbol* newSymbol) {
 	symbols.insert(index, newSymbol);
 }
 
+int TextFile::removeSymbol(std::shared_ptr<GenericSymbol> symbol) {
+	int index = -1;
+	for (int i = 0; i < symbols.size(); i++) {
+		if (symbols[i]->getPosition() == symbol->getPosition()) {
+			index = i;
+			break;
+		}
+	}
+	if (index != -1) {
+		symbols.erase(symbols.begin() + index);
+	}
+	return index;
+}
+
+std::shared_ptr<GenericSymbol> TextFile::getSymbol(int siteId, int counter, QVector<int> pos) {
+	int index = -1;
+	for (int i = 0; i < symbols.size(); i++) {
+		if (symbols[i]->getPosition() == pos && siteId == symbols[i]->getSiteId() && symbols[i]->getCounter() == counter) {
+			index = i;
+			break;
+		}
+	}
+	if (index != -1) {
+		return symbols[index];
+	}
+	else {
+		return nullptr;
+	}
+}
+
 QVector<QTcpSocket*> TextFile::getConnections()
 {
 	return connections;
@@ -70,7 +100,7 @@ void TextFile::removeConnection(QTcpSocket* connection)
 		connections.end());
 }
 
-void TextFile::pushBackSymbol(GenericSymbol* sym) {
+void TextFile::pushBackSymbol(std::shared_ptr<GenericSymbol> sym) {
 	
 	symbols.push_back(sym);
 } 
