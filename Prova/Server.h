@@ -28,6 +28,7 @@ Q_SIGNALS:/*definizione di segnali*/
 private slots:
 	void onNewConnection();
 	void onDisconnected();
+	void saveFile(std::shared_ptr<TextFile> f);
 	void onReadyRead();
 	void changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver);
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
@@ -43,20 +44,19 @@ private:
 	QTcpServer* server;
 	int siteIdCounter = 0; //devo salvarlo da qualche parte in caso di crash?
 
-	QMap<QTcpSocket*, UserConn*> clients;//client connessi
-	
-	QMap<QString, TextFile*> files;//file in archivio
+	QMap<QTcpSocket*, std::shared_ptr<UserConn>> clients;//client connessi
 
-	QMap<QString, User*> subs;//utenti iscritti
-	
+	QMap<QString, std::shared_ptr<TextFile>> files;//file in archivio
+
+	QMap<QString, std::shared_ptr<User>> subs;//utenti iscritti
+
 	QMap<QString, QVector<QString>> filesForUser;
-	
+
 	void load_subs();
 	void load_files();
-	void load_file(TextFile* f);
+	void load_file(std::shared_ptr<TextFile> f);
 	void addNewUser();
 	void addNewFile(QString filename, QString user);
-	
+
 
 };
-
