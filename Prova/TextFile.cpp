@@ -87,7 +87,8 @@ QVector<QTcpSocket*> TextFile::getConnections()
 
 void TextFile::addConnection(QTcpSocket* connection)
 {
-	connections.push_back(connection);
+	if(!connections.contains(connection))
+		connections.push_back(connection);
 }
 
 void TextFile::removeConnection(QTcpSocket* connection)

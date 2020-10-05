@@ -34,7 +34,7 @@ private slots:
 	void changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver);
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
 	bool login(QString username, QString password, QTcpSocket* sender);
-	void sendFiles(QString username, QTcpSocket* receiver, bool success);
+	void sendFiles(QTcpSocket* receiver);
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
 	void sendSymbol(std::shared_ptr<GenericSymbol> symbol, bool insert, QTcpSocket* socket);
 	void sendFile(QString filename, QTcpSocket* socket);
@@ -58,6 +58,6 @@ private:
 	void load_file(TextFile* f);
 	void addNewUser();
 	void addNewFile(QString filename, QString user);
-
+	bool isAuthenticated(QTcpSocket* socket);
 
 };
