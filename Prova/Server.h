@@ -44,7 +44,7 @@ private:
 	QTcpServer* server;
 	int siteIdCounter = 0; //devo salvarlo da qualche parte in caso di crash?
 
-	QMap<QTcpSocket*, UserConn*> connections;//client connessi
+	QMap<QTcpSocket*, UserConn*> clients;//client connessi
 
 	QMap<QString, TextFile*> files;//file in archivio
 
