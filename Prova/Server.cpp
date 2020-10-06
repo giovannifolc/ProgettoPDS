@@ -11,7 +11,7 @@ Server::~Server() {
 void Server::onDisconnected()
 {
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
-	QString filename = clients.find(socket).value()->getFilename();
+	QString filename = connections.find(socket).value()->getFilename();
 	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
 		TextFile *f = files.find(filename).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
@@ -19,10 +19,10 @@ void Server::onDisconnected()
 		}
 		f->removeConnection(socket);//rimozione utente dai connessi al file
 		std::cout << "UTENTI CONNESSI A " << filename.toStdString() << ":\t" << f->getConnections().size() << std::endl;
-		sendClient(clients.find(socket).value()->getNickname(), socket, false);
+		sendClient(connections.find(socket).value()->getNickname(), socket, false);
 	}
-	clients.remove(socket);
-	std::cout << "UTENTI CONNESSI:\t" << clients.size() << std::endl;
+	connections.remove(socket);
+	std::cout << "UTENTI CONNESSI:\t" << connections.size() << std::endl;
 }
 
 void Server::saveFile(TextFile *f) {
@@ -95,9 +95,9 @@ void Server::saveFile(TextFile *f) {
 void Server::onReadyRead()
 {
 	QTcpSocket* sender = static_cast<QTcpSocket*>(QObject::sender());
-	auto myClient = clients.find(sender);
+	auto myClient = connections.find(sender);
 	//se esiste nel nostro elenco di client connessi riceviamo, altrimenti no
-	if (myClient != clients.end()) {
+	if (myClient != connections.end()) {
 		QDataStream in;
 		in.setDevice(myClient.key());
 		int operation;
@@ -162,7 +162,12 @@ void Server::onReadyRead()
 			//segnalazione di disconnessione da un file
 			QString filename;
 			in >> filename;
-			clients.find(sender).value()->setFilename("");
+			connections.find(sender).value()->setFilename("");
+
+			files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
+			for (auto conn : files.find(filename).value()->getConnections()) {
+				sendClient(connections.find(sender).value()->getNickname(), conn, false);
+			}
 			saveIfLast(filename);
 			break;
 		}
@@ -182,7 +187,7 @@ void Server::onReadyRead()
 
 void Server::saveIfLast(QString filename) {
 	bool salva = true;
-	for (auto client : clients) {
+	for (auto client : connections) {
 		if (client->getFilename() == filename) {
 			salva = false;
 		}
@@ -211,28 +216,27 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		}
 		//mando a tutti i client con lo stesso file aperto un avviso che c'è un nuovo connesso
 		for (auto conn : tf->getConnections()) {
-			sendClient(clients.find(socket).value()->getNickname(), conn, true);
+			sendClient(connections.find(socket).value()->getNickname(), conn, true);
 		}
 		/*for (auto client : clients) {
 			if (client->getFilename() == filename) {
 				sendClient(clients.find(socket).value()->getNickname(), client->getSocket());
 			}
 		}*/
-		
 	}
 	else {
 		//creo un nuovo file
-		if (clients.contains(socket)) {
+		if (connections.contains(socket)) {
 			TextFile* tf = new TextFile(filename, socket);
 			files.insert(filename, tf);
-			filesForUser[clients.find(socket).value()->getUsername()].append(filename);
-			addNewFile(filename, clients.find(socket).value()->getUsername());
+			filesForUser[connections.find(socket).value()->getUsername()].append(filename);
+			addNewFile(filename, connections.find(socket).value()->getUsername());
 		}
 	}
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
-	if (clients.contains(socket)) {
+	if (connections.contains(socket)) {
 		files.find(filename).value()->addConnection(socket);
-		clients.find(socket).value()->setFilename(filename);
+		connections.find(socket).value()->setFilename(filename);
 	}
 }
 
@@ -252,7 +256,7 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 }
 
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
-	auto tmp = clients.find(sender);
+	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter;
 	QChar value;
@@ -260,7 +264,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 	QVector<int> pos;
 	*in >> siteId >> counter >> pos;
 	//controlli
-	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		QChar value;
 		bool bold, italic, underlined;
 		int alignment, textSize;
@@ -273,7 +277,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		
 		
 		//mando agli altri client con il file aperto
-		for (auto client : clients) {
+		for (auto client : connections) {
 			if (client->getFilename() == filename) {
 				sendSymbol(symbol, true, client->getSocket());
 			}
@@ -314,14 +318,14 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 
 
 void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
-	auto tmp = clients.find(sender);
+	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
 	//controlli
-	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
 		tmpFile.value()->removeSymbol(sym);
 		//inoltro la cancellazione agli altri client interessati
-		for (auto client : clients) {
+		for (auto client : connections) {
 			if (client->getFilename() == filename) {
 				sendSymbol(sym, false, client->getSocket()); //false per dire che è una cancellazione
 			}
@@ -333,7 +337,7 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int flag = 1;
-	UserConn* tmp = clients.find(receiver).value();
+	UserConn* tmp = connections.find(receiver).value();
 	if (tmp->getUsername() == username) {
 		if (old_password == tmp->getPassword()) {
 			//vuole modificare la password
@@ -366,7 +370,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
 		addNewUser();
-		clients.insert(sender, conn);
+		connections.insert(sender, conn);
 		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
 	}
 	else {
@@ -377,7 +381,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 }
 
 void Server::sendFiles(QTcpSocket* receiver){
-	UserConn* conn = clients.find(receiver).value();
+	UserConn* conn = connections.find(receiver).value();
 	QString username = conn->getUsername();
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -418,7 +422,7 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 	if (tmp != subs.end()) {
 		QString pwd = tmp.value()->getPassword();
 		if (pwd == password) {
-			UserConn* conn = clients.find(sender).value();
+			UserConn* conn = connections.find(sender).value();
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
@@ -555,9 +559,9 @@ void Server::onNewConnection() {
 
 	//addConnection
 	UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
-	clients.insert(socket, connection);//mappa client connessi
+	connections.insert(socket, connection);//mappa client connessi
 
-	std::cout << "# of connected users :\t" << clients.size() << std::endl;
+	std::cout << "# of connected users :\t" << connections.size() << std::endl;
 }
 
 void Server::addNewUser() {
@@ -587,7 +591,7 @@ void Server::addNewFile(QString filename, QString user) {
 
 bool Server::isAuthenticated(QTcpSocket* socket)
 {
-	UserConn* conn = clients.find(socket).value();
+	UserConn* conn = connections.find(socket).value();
 	if (conn->getUsername() != "") {
 		return true;
 	}
