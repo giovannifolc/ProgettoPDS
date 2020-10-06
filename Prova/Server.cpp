@@ -13,7 +13,8 @@ void Server::onDisconnected()
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = clients.find(socket).value()->getFilename();
 	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
-		TextFile *f = files.find(filename).value();
+		//TextFile *f = files.find(filename).value();
+		std::shared_ptr<TextFile> f = files.find(filename).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
 			saveFile(f);
 		}
@@ -25,7 +26,7 @@ void Server::onDisconnected()
 	std::cout << "UTENTI CONNESSI:\t" << clients.size() << std::endl;
 }
 
-void Server::saveFile(TextFile *f) {
+void Server::saveFile(std::shared_ptr<TextFile> f) {
 	QString filename = f->getFilename();
 	QFile file(filename);
 	if (file.open(QIODevice::WriteOnly))
@@ -196,7 +197,8 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 	
 	if (files.contains(filename)) {
 
-		TextFile* tf = files.find(filename).value();
+		//TextFile* tf = files.find(filename).value();
+		std::shared_ptr<TextFile> tf = files.find(filename).value();
 
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
@@ -219,7 +221,9 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 	else {
 		//creo un nuovo file
 		if (clients.contains(socket)) {
-			TextFile* tf = new TextFile(filename, socket);
+			//TextFile* tf = new TextFile(filename, socket);
+		    std::shared_ptr<TextFile> tf = std::make_shared<TextFile>(TextFile(filename, socket));
+			
 			files.insert(filename, tf);
 			filesForUser[clients.find(socket).value()->getUsername()].append(filename);
 			addNewFile(filename, clients.find(socket).value()->getUsername());
@@ -329,7 +333,8 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int flag = 1;
-	UserConn* tmp = clients.find(receiver).value();
+	//UserConn* tmp = clients.find(receiver).value();
+	std::shared_ptr<UserConn> tmp = clients.find(receiver).value();
 	if (tmp->getUsername() == username) {
 		if (old_password == tmp->getPassword()) {
 			//vuole modificare la password
@@ -358,8 +363,10 @@ void Server::registration(QString username, QString password, QString nickname, 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	if (!subs.contains(username)) {
-		User* user = new User(username, password, nickname, siteIdCounter++);
-		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
+		//User* user = new User(username, password, nickname, siteIdCounter++);
+		std::shared_ptr<User> user = std::make_shared<User>(User(username, password, nickname, siteIdCounter++));
+		//UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
+		std::shared_ptr<UserConn> conn = std::make_shared<UserConn>(UserConn(username, password, nickname, user->getSiteId(), sender, QString("")));
 		subs.insert(username, user);
 		addNewUser();
 		clients.insert(sender, conn);
@@ -414,7 +421,8 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 	if (tmp != subs.end()) {
 		QString pwd = tmp.value()->getPassword();
 		if (pwd == password) {
-			UserConn* conn = clients.find(sender).value();
+			//UserConn* conn = clients.find(sender).value();
+			std::shared_ptr<UserConn> conn = clients.find(sender).value();
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
@@ -459,7 +467,8 @@ void Server::load_subs()
 			nickname = line.split(" ")[2];
 			siteId = line.split(" ")[3].toInt();
 
-			User* user = new User(username, password, nickname, siteId);
+			//User* user = new User(username, password, nickname, siteId);
+			std::shared_ptr<User> user = std::make_shared<User>(User(username, password, nickname, siteId));
 			subs.insert(username, user);
 		}
 		fin.close();
@@ -488,7 +497,8 @@ void Server::load_files()
 				}
 			}
 			filename = words[0];
-			TextFile* f = new TextFile(words[0]);
+			//TextFile* f = new TextFile(words[0]);
+			std::shared_ptr<TextFile> f = std::make_shared<TextFile>(TextFile(words[0]));
 			load_file(f);
 			files.insert(filename, f);
 		}
@@ -497,7 +507,7 @@ void Server::load_files()
 	else std::cout << "File 'all_files.txt' not opened" << std::endl;
 }
 
-void Server::load_file(TextFile* f)
+void Server::load_file(std::shared_ptr<TextFile> f)
 {
 	int nRows;
 	QFile fin(f->getFilename());
@@ -550,7 +560,8 @@ void Server::onNewConnection() {
 	connect(socket, &QTcpSocket::readyRead, this, &Server::onReadyRead);
 
 	//addConnection
-	UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
+	//UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
+	std::shared_ptr<UserConn> connection = std::make_shared<UserConn>(UserConn("", "", "", -1, socket, ""));
 	clients.insert(socket, connection);//mappa client connessi
 
 	std::cout << "# of connected users :\t" << clients.size() << std::endl;
@@ -560,7 +571,7 @@ void Server::addNewUser() {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 		QTextStream output(&file);
-		for (User* u : subs.values()) {
+		for (auto u : subs.values()) {
 			output << u->getUsername() << " " << u->getPassword() << " " << u->getNickname() << " " << u->getSiteId() << "\n";
 		}
 		file.close();
