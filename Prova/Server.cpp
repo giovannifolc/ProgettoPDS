@@ -11,22 +11,21 @@ Server::~Server() {
 void Server::onDisconnected()
 {
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
-	QString filename = clients.find(socket).value()->getFilename();
-	if (filename.compare("") != 0) { //se c'ï¿½ un file associato a quella connessione
-		//TextFile *f = files.find(filename).value();
-		std::shared_ptr<TextFile> f = files.find(filename).value();
+	QString filename = connections.find(socket).value()->getFilename();
+	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
+		TextFile *f = files.find(filename).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
 			saveFile(f);
 		}
 		f->removeConnection(socket);//rimozione utente dai connessi al file
 		std::cout << "UTENTI CONNESSI A " << filename.toStdString() << ":\t" << f->getConnections().size() << std::endl;
-		sendClient(clients.find(socket).value()->getNickname(), socket, false);
+		sendClient(connections.find(socket).value()->getNickname(), socket, false);
 	}
-	clients.remove(socket);
-	std::cout << "UTENTI CONNESSI:\t" << clients.size() << std::endl;
+	connections.remove(socket);
+	std::cout << "UTENTI CONNESSI:\t" << connections.size() << std::endl;
 }
 
-void Server::saveFile(std::shared_ptr<TextFile> f) {
+void Server::saveFile(TextFile *f) {
 	QString filename = f->getFilename();
 	QFile file(filename);
 	if (file.open(QIODevice::WriteOnly))
@@ -39,7 +38,7 @@ void Server::saveFile(std::shared_ptr<TextFile> f) {
 			/*if (symbol->isStyle()) {
 				stream << 1;
 				std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-				stream << ss->isStyle() << pos++ << ss->getCounter() << ss->getSiteId();
+				stream << ss->isStyle() << pos++ << ss->getCounter() << ss->getSiteId(); 
 				if (ss->isBold()) {
 					stream << 1;
 				}else {
@@ -50,7 +49,7 @@ void Server::saveFile(std::shared_ptr<TextFile> f) {
 				}
 				else {
 					stream << 0;
-				}
+				} 
 				if (ss->isUnderlined()) {
 					stream << 1;
 				}
@@ -61,11 +60,14 @@ void Server::saveFile(std::shared_ptr<TextFile> f) {
 			}
 			else {
 				std::shared_ptr<TextSymbol> ts = std::dynamic_pointer_cast<TextSymbol>(symbol);
-				stream << 0; //non ï¿½ stile
+				stream << 0; //non è stile
 				stream << " " << pos++ << " " << ts->getCounter() << " " << ts->getSiteId() << " " << ts->getValue() << endl;
 			}*/
 			//stream << 1;
-
+			qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " <<
+				s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
+				<< " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
+			
 			stream << pos++ << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
 			if (s->isBold()) {
 				stream << 1 << " ";
@@ -93,16 +95,16 @@ void Server::saveFile(std::shared_ptr<TextFile> f) {
 void Server::onReadyRead()
 {
 	QTcpSocket* sender = static_cast<QTcpSocket*>(QObject::sender());
-	auto myClient = clients.find(sender);
+	auto myClient = connections.find(sender);
 	//se esiste nel nostro elenco di client connessi riceviamo, altrimenti no
-	if (myClient != clients.end()) {
+	if (myClient != connections.end()) {
 		QDataStream in;
 		in.setDevice(myClient.key());
 		int operation;
 		in >> operation;
 		switch (operation)
 		{
-
+			
 		case 0:
 		{	//caso per il login
 			QString username, password;
@@ -112,7 +114,7 @@ void Server::onReadyRead()
 			/*if(success)
 				sendFiles(sender);*/
 			break;
-
+			
 		}
 		case 1: {
 			//caso per la registrazione
@@ -126,7 +128,7 @@ void Server::onReadyRead()
 			//caso per la modifica credenziali
 			QString username, old_password, new_password, nickname;
 			in >> username >> old_password >> new_password >> nickname;
-			//check su identitï¿½
+			//check su identità
 			changeCredentials(username, old_password, new_password, nickname, sender);
 			break;
 		}
@@ -140,7 +142,7 @@ void Server::onReadyRead()
 				insertSymbol(filename, sender, &in);
 			}
 			else {
-				int siteId, counter;
+				int siteId, counter; 
 				QVector<int> pos;
 				in >> siteId >> counter >> pos;
 				deleteSymbol(filename, siteId, counter, pos, sender);
@@ -160,7 +162,12 @@ void Server::onReadyRead()
 			//segnalazione di disconnessione da un file
 			QString filename;
 			in >> filename;
-			clients.find(sender).value()->setFilename("");
+			connections.find(sender).value()->setFilename("");
+
+			files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
+			for (auto conn : files.find(filename).value()->getConnections()) {
+				sendClient(connections.find(sender).value()->getNickname(), conn, false);
+			}
 			saveIfLast(filename);
 			break;
 		}
@@ -175,11 +182,12 @@ void Server::onReadyRead()
 	else {
 		//visualizzare errore e chiudere connessione?
 	}
+	sender->flush();
 }
 
 void Server::saveIfLast(QString filename) {
 	bool salva = true;
-	for (auto client : clients) {
+	for (auto client : connections) {
 		if (client->getFilename() == filename) {
 			salva = false;
 		}
@@ -194,22 +202,21 @@ void Server::saveIfLast(QString filename) {
 void Server::sendFile(QString filename, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
-
+	
 	if (files.contains(filename)) {
 
-		//TextFile* tf = files.find(filename).value();
-		std::shared_ptr<TextFile> tf = files.find(filename).value();
+		TextFile* tf = files.find(filename).value();
 
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
 		socket->write(buf);
-		socket->flush();
+		//socket->flush();
 		for (auto s : tf->getSymbols()) {
 			sendSymbol(s, true, socket);
 		}
-		//mando a tutti i client con lo stesso file aperto un avviso che c'ï¿½ un nuovo connesso
+		//mando a tutti i client con lo stesso file aperto un avviso che c'è un nuovo connesso
 		for (auto conn : tf->getConnections()) {
-			sendClient(clients.find(socket).value()->getNickname(), conn, true);
+			sendClient(connections.find(socket).value()->getNickname(), conn, true);
 		}
 		/*for (auto client : clients) {
 			if (client->getFilename() == filename) {
@@ -219,19 +226,17 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 	}
 	else {
 		//creo un nuovo file
-		if (clients.contains(socket)) {
-			//TextFile* tf = new TextFile(filename, socket);
-		    std::shared_ptr<TextFile> tf = std::make_shared<TextFile>(TextFile(filename, socket));
-
+		if (connections.contains(socket)) {
+			TextFile* tf = new TextFile(filename, socket);
 			files.insert(filename, tf);
-			filesForUser[clients.find(socket).value()->getUsername()].append(filename);
-			addNewFile(filename, clients.find(socket).value()->getUsername());
+			filesForUser[connections.find(socket).value()->getUsername()].append(filename);
+			addNewFile(filename, connections.find(socket).value()->getUsername());
 		}
 	}
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
-	if (clients.contains(socket)) {
+	if (connections.contains(socket)) {
 		files.find(filename).value()->addConnection(socket);
-		clients.find(socket).value()->setFilename(filename);
+		connections.find(socket).value()->setFilename(filename);
 	}
 }
 
@@ -247,11 +252,11 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 		out << 0; //deve rimuovere la persona
 	}
 	socket->write(buf);
-	socket->flush();
+	//socket->flush();
 }
 
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
-	auto tmp = clients.find(sender);
+	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter;
 	QChar value;
@@ -259,7 +264,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 	QVector<int> pos;
 	*in >> siteId >> counter >> pos;
 	//controlli
-	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		QChar value;
 		bool bold, italic, underlined;
 		int alignment, textSize;
@@ -269,10 +274,10 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
-
-
+		
+		
 		//mando agli altri client con il file aperto
-		for (auto client : clients) {
+		for (auto client : connections) {
 			if (client->getFilename() == filename) {
 				sendSymbol(symbol, true, client->getSocket());
 			}
@@ -284,7 +289,7 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int ins;
-	if (socket->state() != QAbstractSocket::ConnectedState)
+	if (socket->state() != QAbstractSocket::ConnectedState)	
 		return;
 	if (insert) {
 		ins = 1;
@@ -294,11 +299,11 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 	}
 	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
 	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
-		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment()
+		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment() 
 		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
 	/*if (symbol->isStyle()) {
 		std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-
+		
 		out << ss->isStyle() << ss->getPosition() << ss->getCounter() << ss->getSiteId() << ss->isBold() << ss->isItalic() << ss->isUnderlined()
 			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
 	}
@@ -308,21 +313,21 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
 	}*/
 	socket->write(buf);
-	socket->flush();
+	//socket->flush();
 }
 
 
 void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
-	auto tmp = clients.find(sender);
+	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
 	//controlli
-	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
 		tmpFile.value()->removeSymbol(sym);
 		//inoltro la cancellazione agli altri client interessati
-		for (auto client : clients) {
+		for (auto client : connections) {
 			if (client->getFilename() == filename) {
-				sendSymbol(sym, false, client->getSocket()); //false per dire che ï¿½ una cancellazione
+				sendSymbol(sym, false, client->getSocket()); //false per dire che è una cancellazione
 			}
 		}
 	}
@@ -332,8 +337,7 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int flag = 1;
-	//UserConn* tmp = clients.find(receiver).value();
-	std::shared_ptr<UserConn> tmp = clients.find(receiver).value();
+	UserConn* tmp = connections.find(receiver).value();
 	if (tmp->getUsername() == username) {
 		if (old_password == tmp->getPassword()) {
 			//vuole modificare la password
@@ -355,42 +359,40 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	}
 	out << flag << -1; //ritorno 0 se fallita, 1 se riuscita
 	receiver->write(buf);
-	receiver->flush();
+	//receiver->flush();
 }
 
 void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	if (!subs.contains(username)) {
-		//User* user = new User(username, password, nickname, siteIdCounter++);
-		std::shared_ptr<User> user = std::make_shared<User>(User(username, password, nickname, siteIdCounter++));
-		//UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
-		std::shared_ptr<UserConn> conn = std::make_shared<UserConn>(UserConn(username, password, nickname, user->getSiteId(), sender, QString("")));
+		User* user = new User(username, password, nickname, siteIdCounter++);
+		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
 		addNewUser();
-		clients.insert(sender, conn);
+		connections.insert(sender, conn);
 		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
 	}
 	else {
 		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
 	}
-	sender->write(buf);
-	sender->flush();
+	sender->write(buf);	
+	//sender->flush();
 }
 
 void Server::sendFiles(QTcpSocket* receiver){
-	UserConn* conn = clients.find(receiver).value();
+	UserConn* conn = connections.find(receiver).value();
 	QString username = conn->getUsername();
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	out << 6;//invio codice operazione
-
-	if (isAuthenticated(receiver)) { // controllare se ï¿½ loggato
+	
+	if (isAuthenticated(receiver)) { // controllare se è loggato
 		out << 1; //operazione riuscita
 		QVector<QString> tmp = filesForUser[conn->getUsername()];
 		//mando siteId
 		out << subs.find(username).value()->getSiteId();
-
+		
 		//gestione se non ho file? Questo da nullpointer exception forse
 		if (filesForUser.contains(username)) {
 			//mando numero di nomi di file in arrivo
@@ -401,15 +403,15 @@ void Server::sendFiles(QTcpSocket* receiver){
 			}
 		}
 		else {
-			out << 0; //mando 0, ovvero la quantitï¿½ di nomi di file in arrivo
+			out << 0; //mando 0, ovvero la quantità di nomi di file in arrivo
 		}
-
+	
 	}
 	else {
 		out << 0; //operazione fallita e fine trasmissione
 	}
 	receiver->write(buf);
-	receiver->flush();
+	//receiver->flush();
 }
 
 bool Server::login(QString username, QString password, QTcpSocket* sender) {
@@ -420,28 +422,27 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 	if (tmp != subs.end()) {
 		QString pwd = tmp.value()->getPassword();
 		if (pwd == password) {
-			//UserConn* conn = clients.find(sender).value();
-			std::shared_ptr<UserConn> conn = clients.find(sender).value();
+			UserConn* conn = connections.find(sender).value();
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
 			conn->setSiteId(tmp.value()->getSiteId());
 			out << 1; //operazione riuscita
 			sender->write(buf);
-			sender->flush();
+			//sender->flush();
 			return true;
 		}
 		else {
 			out << 0;
 			sender->write(buf);
-			sender->flush();
+			//sender->flush();
 			return false;
 		}
 	}
 	else {
 		out << 0;
 		sender->write(buf);
-		sender->flush();
+		//sender->flush();
 		return false;
 	}
 }
@@ -457,23 +458,22 @@ void Server::load_subs()
 	if (fin.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		QTextStream in(&fin);
 		while (!in.atEnd())
-		{
-
+		{   
+		
 			QString line = in.readLine();
-
-			username = line.split(" ")[0];
+			
+			username = line.split(" ")[0]; 
 			password = line.split(" ")[1];
 			nickname = line.split(" ")[2];
 			siteId = line.split(" ")[3].toInt();
 
-			//User* user = new User(username, password, nickname, siteId);
-			std::shared_ptr<User> user = std::make_shared<User>(User(username, password, nickname, siteId));
+			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
 		}
 		fin.close();
 		std::cout << "Loaded subscription!\n";
 	}
-	else
+	else 
 		std::cout << "File subscribers.txt non aperto" << std::endl;
 }
 
@@ -481,7 +481,7 @@ void Server::load_files()
 {
 	QString filename;
 	QFile fin("all_files.txt");
-
+		
 	std::cout << "Loading files..\n";
 
 	if (fin.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -496,8 +496,7 @@ void Server::load_files()
 				}
 			}
 			filename = words[0];
-			//TextFile* f = new TextFile(words[0]);
-			std::shared_ptr<TextFile> f = std::make_shared<TextFile>(TextFile(words[0]));
+			TextFile* f = new TextFile(words[0]);
 			load_file(f);
 			files.insert(filename, f);
 		}
@@ -506,7 +505,7 @@ void Server::load_files()
 	else std::cout << "File 'all_files.txt' not opened" << std::endl;
 }
 
-void Server::load_file(std::shared_ptr<TextFile> f)
+void Server::load_file(TextFile* f)
 {
 	int nRows;
 	QFile fin(f->getFilename());
@@ -533,15 +532,15 @@ void Server::load_file(std::shared_ptr<TextFile> f)
 			f->pushBackSymbol(std::make_shared<Symbol>(sym));
 		}
 		fin.close();
-	}
+	}	
 }
 
-Server::Server(QObject* parent) : QObject(parent)
+Server::Server(QObject* parent) : QObject(parent) 
 {
 	server = new QTcpServer(this);
 
 	load_subs();
-
+	
 	load_files();
 
 	connect(server, &QTcpServer::newConnection, this, &Server::onNewConnection);
@@ -554,23 +553,22 @@ Server::Server(QObject* parent) : QObject(parent)
 
 void Server::onNewConnection() {
 	QTcpSocket* socket  = server->nextPendingConnection();
-
+	
 	connect(socket, &QTcpSocket::disconnected, this, &Server::onDisconnected);
 	connect(socket, &QTcpSocket::readyRead, this, &Server::onReadyRead);
 
 	//addConnection
-	//UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
-	std::shared_ptr<UserConn> connection = std::make_shared<UserConn>(UserConn("", "", "", -1, socket, ""));
-	clients.insert(socket, connection);//mappa client connessi
+	UserConn* connection = new UserConn("", "", "", -1, socket, "");//usr,pwd,nickname,siteId,socket,filename
+	connections.insert(socket, connection);//mappa client connessi
 
-	std::cout << "# of connected users :\t" << clients.size() << std::endl;
+	std::cout << "# of connected users :\t" << connections.size() << std::endl;
 }
 
 void Server::addNewUser() {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 		QTextStream output(&file);
-		for (auto u : subs.values()) {
+		for (User* u : subs.values()) {
 			output << u->getUsername() << " " << u->getPassword() << " " << u->getNickname() << " " << u->getSiteId() << "\n";
 		}
 		file.close();
@@ -584,7 +582,7 @@ void Server::addNewFile(QString filename, QString user) {
 	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
 
 		QTextStream output(&file);
-
+	
 		output << filename << " " <<user << "\n";
 	}
 
@@ -593,7 +591,7 @@ void Server::addNewFile(QString filename, QString user) {
 
 bool Server::isAuthenticated(QTcpSocket* socket)
 {
-	UserConn* conn = clients.find(socket).value();
+	UserConn* conn = connections.find(socket).value();
 	if (conn->getUsername() != "") {
 		return true;
 	}
