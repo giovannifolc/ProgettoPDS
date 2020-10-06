@@ -216,7 +216,6 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 				sendClient(clients.find(socket).value()->getNickname(), client->getSocket());
 			}
 		}*/
-
 	}
 	else {
 		//creo un nuovo file
