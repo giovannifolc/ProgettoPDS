@@ -34,11 +34,10 @@ void Server::saveFile(TextFile *f) {
 		int pos = 1;
 		int size = files.find(filename).value()->getSymbols().size();
 		stream << size << endl;
-		for (auto symbol : files.find(filename).value()->getSymbols()) {
-			if (symbol->isStyle()) {
+		for (auto s : files.find(filename).value()->getSymbols()) {
+			/*if (symbol->isStyle()) {
 				stream << 1;
 				std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-				/*posso passare dei bool o devo passare int corrispondenti?*/
 				stream << ss->isStyle() << pos++ << ss->getCounter() << ss->getSiteId(); 
 				if (ss->isBold()) {
 					stream << 1;
@@ -63,7 +62,10 @@ void Server::saveFile(TextFile *f) {
 				std::shared_ptr<TextSymbol> ts = std::dynamic_pointer_cast<TextSymbol>(symbol);
 				stream << 0; //non è stile
 				stream << " " << pos++ << " " << ts->getCounter() << " " << ts->getSiteId() << " " << ts->getValue() << endl;
-			}
+			}*/
+			//stream << 1;
+			stream << pos++ << s->getCounter() << s->getSiteId() << s->getValue() << s->isBold() << s->isItalic() <<
+				s->isUnderlined() << s->getAlignment() << s->getTextSize() << s->getColor().name() << s->getFont() << endl;
 		}
 	}
 	file.close();
@@ -229,37 +231,33 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 	auto tmp = clients.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter;
+	QChar value;
 	bool style;
 	QVector<int> pos;
-	*in >> siteId >> counter >> pos >> style;
+	*in >> siteId >> counter >> pos;
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		if (style == true) {
-			bool bold, italic, underlined;
-			int alignment, textSize;
-			QColor color;
-			QString font;
-			*in >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
-			StyleSymbol sym(style , pos, counter, siteId, bold, italic, underlined, alignment, textSize, color, font);
-			tmpFile.value()->addSymbol(std::make_shared<StyleSymbol>(sym));
-		}
-		else {
-			QChar value;
-			*in >> value;
-			TextSymbol sym((style == 1), pos, counter, siteId, value);
-			tmpFile.value()->addSymbol(std::make_shared<TextSymbol>(sym));
-		}
+		QChar value;
+		bool bold, italic, underlined;
+		int alignment, textSize;
+		QColor color;
+		QString font;
+		*in >> value >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
+		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
+		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
+		tmpFile.value()->addSymbol(symbol);
+		
+		
 		//mando agli altri client con il file aperto
-		std::shared_ptr<GenericSymbol> gs = tmpFile.value()->getSymbol(siteId, counter, pos);
 		for (auto client : clients) {
 			if (client->getFilename() == filename) {
-				sendSymbol(gs, true, client->getSocket());
+				sendSymbol(symbol, true, client->getSocket());
 			}
 		}
 	}
 }
 
-void Server::sendSymbol(std::shared_ptr<GenericSymbol> symbol, bool insert, QTcpSocket* socket) {
+void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int ins;
@@ -272,10 +270,12 @@ void Server::sendSymbol(std::shared_ptr<GenericSymbol> symbol, bool insert, QTcp
 		ins = 0;
 	}
 	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
-
-	if (symbol->isStyle()) {
+	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
+		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment() 
+		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
+	/*if (symbol->isStyle()) {
 		std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-		/*posso passare dei bool o devo passare int corrispondenti?*/
+		
 		out << ss->isStyle() << ss->getPosition() << ss->getCounter() << ss->getSiteId() << ss->isBold() << ss->isItalic() << ss->isUnderlined()
 			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
 	}
@@ -283,7 +283,7 @@ void Server::sendSymbol(std::shared_ptr<GenericSymbol> symbol, bool insert, QTcp
 		//TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
 		//out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
 		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
-	}
+	}*/
 	socket->write(buf);
 }
 
@@ -293,7 +293,7 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 	auto tmpFile = files.find(filename);
 	//controlli
 	if (tmp != clients.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		std::shared_ptr<GenericSymbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
+		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
 		tmpFile.value()->removeSymbol(sym);
 		//inoltro la cancellazione agli altri client interessati
 		for (auto client : clients) {
@@ -478,29 +478,23 @@ void Server::load_file(TextFile* f)
 		QTextStream in(&fin);
 		in >> nRows;
 		for (int i = 0; i < nRows; i++) {
-			int siteId, counter, style, pos;
-			in >> style >> pos >> counter >> siteId;
+			int siteId, counter, pos;
+			int bold, italic, underlined, alignment, textSize;
+			QString colorName;
+			QString font;
+			in >> pos >> counter >> siteId;
 			QVector<int> vect;
 			vect.push_back(pos);
+			QChar value;
+			in >> value; //salto lo spazio che separa pos da value
+			in >> value;
+			in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
+			QColor color;
+			color.setNamedColor(colorName);
+			Symbol sym(vect, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 
-			if (style == 1) {
-				int bold, italic, underlined, alignment, textSize;
-				QString colorName;
-				QString font;
-				in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
-				QColor color; 
-				color.setNamedColor(colorName);
-				StyleSymbol sym((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
-				f->pushBackSymbol(std::make_shared<StyleSymbol>(sym));
-			}
-			else {
-				QChar value;
-				in >> value; //salto lo spazio che separa pos da value
-				in >> value;
-				
-				TextSymbol sym((style==1), vect, counter, siteId, value);
-				f->pushBackSymbol(std::make_shared<TextSymbol>(sym));
-			}
+			//StyleSymbol sym((style == 1), vect, counter, siteId, (bold==1), (italic==1), (underlined==1), alignment, textSize, color, font);
+			f->pushBackSymbol(std::make_shared<Symbol>(sym));
 		}
 		fin.close();
 	}	

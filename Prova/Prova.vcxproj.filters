@@ -30,9 +30,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GenericSymbol.cpp">
-      <Filter>Server\Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Server\Source Files</Filter>
     </ClCompile>
@@ -48,10 +45,7 @@
     <ClCompile Include="UserConn.cpp">
       <Filter>Server\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TextSymbol.cpp">
-      <Filter>Server\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="StyleSymbol.cpp">
+    <ClCompile Include="Symbol.cpp">
       <Filter>Server\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -72,16 +66,10 @@
     <ClInclude Include="TextFile.h">
       <Filter>Server\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GenericSymbol.h">
-      <Filter>Server\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="UserConn.h">
       <Filter>Server\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TextSymbol.h">
-      <Filter>Server\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StyleSymbol.h">
+    <ClInclude Include="Symbol.h">
       <Filter>Server\Header Files</Filter>
     </ClInclude>
   </ItemGroup>

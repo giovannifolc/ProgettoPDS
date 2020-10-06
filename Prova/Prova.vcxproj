@@ -162,22 +162,18 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="GenericSymbol.cpp" />
+    <ClCompile Include="Symbol.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="StyleSymbol.cpp" />
     <ClCompile Include="TextFile.cpp" />
-    <ClCompile Include="TextSymbol.cpp" />
     <ClCompile Include="User.cpp" />
     <ClCompile Include="UserConn.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="StyleSymbol.h" />
     <ClInclude Include="UserConn.h" />
     <QtMoc Include="Server.h" />
-    <ClInclude Include="GenericSymbol.h" />
+    <ClInclude Include="Symbol.h" />
     <ClInclude Include="TextFile.h" />
-    <ClInclude Include="TextSymbol.h" />
     <ClInclude Include="User.h" />
   </ItemGroup>
   <ItemGroup>
