@@ -64,10 +64,7 @@ void Server::saveFile(TextFile *f) {
 				stream << " " << pos++ << " " << ts->getCounter() << " " << ts->getSiteId() << " " << ts->getValue() << endl;
 			}*/
 			//stream << 1;
-			qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " <<
-				s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
-				<< " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
-			
+
 			stream << pos++ << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
 			if (s->isBold()) {
 				stream << 1 << " ";
@@ -182,7 +179,6 @@ void Server::onReadyRead()
 	else {
 		//visualizzare errore e chiudere connessione?
 	}
-	sender->flush();
 }
 
 void Server::saveIfLast(QString filename) {
@@ -210,7 +206,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
 		socket->write(buf);
-		//socket->flush();
+		socket->flush();
 		for (auto s : tf->getSymbols()) {
 			sendSymbol(s, true, socket);
 		}
@@ -252,7 +248,7 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 		out << 0; //deve rimuovere la persona
 	}
 	socket->write(buf);
-	//socket->flush();
+	socket->flush();
 }
 
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
@@ -313,7 +309,7 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
 	}*/
 	socket->write(buf);
-	//socket->flush();
+	socket->flush();
 }
 
 
@@ -359,7 +355,7 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	}
 	out << flag << -1; //ritorno 0 se fallita, 1 se riuscita
 	receiver->write(buf);
-	//receiver->flush();
+	receiver->flush();
 }
 
 void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender) {
@@ -377,7 +373,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
 	}
 	sender->write(buf);	
-	//sender->flush();
+	sender->flush();
 }
 
 void Server::sendFiles(QTcpSocket* receiver){
@@ -411,7 +407,7 @@ void Server::sendFiles(QTcpSocket* receiver){
 		out << 0; //operazione fallita e fine trasmissione
 	}
 	receiver->write(buf);
-	//receiver->flush();
+	receiver->flush();
 }
 
 bool Server::login(QString username, QString password, QTcpSocket* sender) {
@@ -429,20 +425,20 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 			conn->setSiteId(tmp.value()->getSiteId());
 			out << 1; //operazione riuscita
 			sender->write(buf);
-			//sender->flush();
+			sender->flush();
 			return true;
 		}
 		else {
 			out << 0;
 			sender->write(buf);
-			//sender->flush();
+			sender->flush();
 			return false;
 		}
 	}
 	else {
 		out << 0;
 		sender->write(buf);
-		//sender->flush();
+		sender->flush();
 		return false;
 	}
 }
