@@ -58,5 +58,8 @@ private:
 	void addNewUser();
 	void addNewFile(QString filename, QString user);
 	bool isAuthenticated(QTcpSocket* socket);
+	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
+	bool readFromLog(TextFile* f);
+	void deleteLog(TextFile* f);
 
 };
