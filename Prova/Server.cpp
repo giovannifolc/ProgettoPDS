@@ -187,7 +187,7 @@ void Server::onReadyRead()
 			QString username;
 			int operation;
 
-			in >> operation >> filename >> username ;
+			in >> operation >> filename;
 
 
 			/*
@@ -200,9 +200,8 @@ void Server::onReadyRead()
 				shareOwnership(filename, sender);
 			}
 			else if (operation == 2) {
-				/*
-				removeOwnership
-				*/
+				
+				requestURI(filename, sender);
 			}
 			else {
 				/*
@@ -409,7 +408,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 		User* user = new User(username, password, nickname, siteIdCounter++);
 		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 		subs.insert(username, user);
-		addNewUser();
+		addNewUserToFile(user);
 		connections.insert(sender, conn);
 		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
 	}
@@ -576,26 +575,30 @@ void Server::shareOwnership(QString filename, QTcpSocket* sender) {
     
 }
 
-/*void Server::requestURI(QString filename, QTcpSocket* sender) {
+/*
+
+  TODO implementare crittografia
+
+*/
+void Server::requestURI(QString filename, QTcpSocket* sender) {
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	
-	BCryptHash(BCRYPT_SHA256_ALG_HANDLE,)
-
-	std::hash<QString> hash_fn;
+	out << 7 << 2; //ripsonde al caso 7 (shareOwnership) operazione 2 richiestaURI
+	//std::hash<QString> hash_fn;
 	UserConn* tmp = connections.find(sender).value();
 
-	size_t result = hash_fn(filename + tmp->getUsername());
+	//size_t result = hash_fn(filename + tmp->getUsername());
 
-	out << tmp->getUsername() << "/" << filename << "?" << result;
+	out << tmp->getUsername() << "/" << filename;
 
 	// Michele/prova?123456789
 
 	sender->write(buf); 
 
 
-}*/
+}
 
 void Server::load_file(TextFile* f)
 {
@@ -659,17 +662,32 @@ void Server::onNewConnection() {
 	std::cout << "# of connected users :\t" << connections.size() << std::endl;
 }
 
-void Server::addNewUser() {
+void Server::addNewUserToFile(User* user) {
+	QFile file("subscribers.txt");
+	if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
+		QTextStream output(&file);
+		
+		QVector<QString> userFiles;
+
+		output << user->getUsername() << " " << user->getPassword() << " " << user->getNickname() << " " << user->getSiteId() << "\n";
+		filesForUser.insert(user->getUsername(), userFiles);
+			
+		
+	}
+	file.close();
+}
+
+void Server::rewriteUsersFile() {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 		QTextStream output(&file);
-		for (User* u : subs.values()) {
-			output << u->getUsername() << " " << u->getPassword() << " " << u->getNickname() << " " << u->getSiteId() << "\n";
+		for (User* user : subs.values()) {
+
+			output << user->getUsername() << " " << user->getPassword() << " " << user->getNickname() << " " << user->getSiteId() << "\n";
+
 		}
-		file.close();
 	}
-	else
-		std::cout << "File subscribers.txt non aperto" << std::endl;
+	file.close();
 }
 
 void Server::addNewFile(QString filename, QString user) {
@@ -677,12 +695,25 @@ void Server::addNewFile(QString filename, QString user) {
 	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
 
 		QTextStream output(&file);
-	
-		output << filename << " " <<user << "\n";
+		QVector<QString> utenti;
+		QVector<QString> newFiles;
+		utenti.append(user);
+		output << filename << " " << user << "\n";
+		fileOwnersMap.insert(filename, utenti);
+
+		if (filesForUser.keys().contains(user)) {
+			filesForUser[user].append(filename);
+		}
+		else {
+			newFiles.append(filename);
+			filesForUser.insert(user, newFiles);
+		}
 	}
 
-		file.close();
+	file.close();
 }
+
+
 
 bool Server::isAuthenticated(QTcpSocket* socket)
 {

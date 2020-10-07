@@ -57,8 +57,9 @@ private:
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
-	void addNewUser();
+	void addNewUserToFile(User * user);
 	void addNewFile(QString filename, QString user);
+	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
 	void shareOwnership(QString filename,  QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
