@@ -576,7 +576,7 @@ void Server::shareOwnership(QString filename, QTcpSocket* sender) {
     
 }
 
-void Server::requestURI(QString filename, QTcpSocket* sender) {
+/*void Server::requestURI(QString filename, QTcpSocket* sender) {
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -595,7 +595,7 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 	sender->write(buf); 
 
 
-}
+}*/
 
 void Server::load_file(TextFile* f)
 {
@@ -712,12 +712,12 @@ void Server::saveAllFilesStatus() {
 			output << "\n";
 
 		}
-		
-	
+
+
 	}
 
 	file.close();
-
+}
 
 void Server::writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert) {
 	QString fileLogName = filename + "_log.txt";
