@@ -50,7 +50,9 @@ private:
 
 	QMap<QString, User*> subs;//utenti iscritti
 
-	QMap<QString, QVector<QString>> filesForUser;
+	QMap<QString, QVector<QString>> filesForUser; //file associati ad ogni utente 
+
+	QMap<QString, QVector<QString>> fileOwnersMap; //utenti associati ad ogni file
 
 	void load_subs();
 	void load_files();
@@ -58,5 +60,8 @@ private:
 	void addNewUser();
 	void addNewFile(QString filename, QString user);
 	bool isAuthenticated(QTcpSocket* socket);
+	void shareOwnership(QString filename,  QTcpSocket* socket);
+	void saveAllFilesStatus(); // salva il file All_files.txt
+	void requestURI(QString filename, QTcpSocket* sender);
 
 };

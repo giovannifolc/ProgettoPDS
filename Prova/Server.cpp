@@ -3,6 +3,9 @@
 #include "UserConn.h"
 #include "User.h"
 #include <iostream>
+#include <bcrypt.h>
+
+
 
 
 Server::~Server() {
@@ -174,6 +177,41 @@ void Server::onReadyRead()
 		case 6:
 		{
 			sendFiles(sender);
+			break;
+		}
+		case 7: {
+			/*
+			   Implemento la share ownership
+			*/
+			QString filename;
+			QString username;
+			int operation;
+
+			in >> operation >> filename >> username ;
+
+
+			/*
+			
+			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere l'owner del file
+			
+			*/
+
+			if (operation == 1) {
+				shareOwnership(filename, sender);
+			}
+			else if (operation == 2) {
+				/*
+				removeOwnership
+				*/
+			}
+			else {
+				/*
+				  ERRORE
+				
+				*/
+			}
+
+			break;
 		}
 		default:
 			break;
@@ -490,19 +528,71 @@ void Server::load_files()
 		{	//stile file: nome_file owner1 owner2 ... per ogni riga
 			QString line = in.readLine();
 			QStringList words = line.split(" ");
+			QVector<QString> utenti;
+			filename = words[0];
 			for (auto str : words) {
-				if (str != words[0]) {
-					filesForUser[str].append(words[0]);
+
+				
+				if (str != filename) {
+					utenti.append(str);
+					filesForUser[str].append(filename);
 				}
 			}
-			filename = words[0];
-			TextFile* f = new TextFile(words[0]);
+			fileOwnersMap.insert(filename, utenti);
+			
+			TextFile* f = new TextFile(filename);
 			load_file(f);
 			files.insert(filename, f);
 		}
 		fin.close();
 	}
 	else std::cout << "File 'all_files.txt' not opened" << std::endl;
+}
+
+
+
+/*
+   Funzione per permette l'accettazione di un invito a collaborare
+*/
+void Server::shareOwnership(QString filename, QTcpSocket* sender) {
+	
+
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	
+	UserConn* tmp = connections.find(sender).value();
+
+
+	fileOwnersMap[filename].append(tmp->getUsername());
+	filesForUser[tmp->getUsername()].append(filename);
+	saveAllFilesStatus();
+
+	out << 7 << " " << filename;
+
+	sender->write(buf);
+	
+    
+}
+
+void Server::requestURI(QString filename, QTcpSocket* sender) {
+
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	
+	BCryptHash(BCRYPT_SHA256_ALG_HANDLE,)
+
+	std::hash<QString> hash_fn;
+	UserConn* tmp = connections.find(sender).value();
+
+	size_t result = hash_fn(filename + tmp->getUsername());
+
+	out << tmp->getUsername() << "/" << filename << "?" << result;
+
+	// Michele/prova?123456789
+
+	sender->write(buf); 
+
+
 }
 
 void Server::load_file(TextFile* f)
@@ -598,4 +688,30 @@ bool Server::isAuthenticated(QTcpSocket* socket)
 	else {
 		return false;
 	}
+}
+
+void Server::saveAllFilesStatus() {
+
+	QFile file("all_files.txt");
+	if (file.open(QIODevice::WriteOnly)) {
+
+		QTextStream output(&file);
+		for (QString filename : fileOwnersMap.keys()) {
+			output << filename;
+			for (QString utente : fileOwnersMap[filename]) {
+
+				output << " " << utente;
+
+			}
+
+			output << "\n";
+
+		}
+		
+	
+	}
+
+	file.close();
+
+
 }
