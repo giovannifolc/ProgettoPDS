@@ -63,5 +63,8 @@ private:
 	void shareOwnership(QString filename,  QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
 	void requestURI(QString filename, QTcpSocket* sender);
+	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
+	bool readFromLog(TextFile* f);
+	void deleteLog(TextFile* f);
 
 };

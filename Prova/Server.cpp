@@ -7,7 +7,6 @@
 
 
 
-
 Server::~Server() {
 }
 
@@ -15,7 +14,7 @@ void Server::onDisconnected()
 {
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = connections.find(socket).value()->getFilename();
-	if (filename.compare("") != 0) { //se c'è un file associato a quella connessione
+	if (filename.compare("") != 0) { //se c'ï¿½ un file associato a quella connessione
 		TextFile *f = files.find(filename).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
 			saveFile(f);
@@ -63,7 +62,7 @@ void Server::saveFile(TextFile *f) {
 			}
 			else {
 				std::shared_ptr<TextSymbol> ts = std::dynamic_pointer_cast<TextSymbol>(symbol);
-				stream << 0; //non è stile
+				stream << 0; //non ï¿½ stile
 				stream << " " << pos++ << " " << ts->getCounter() << " " << ts->getSiteId() << " " << ts->getValue() << endl;
 			}*/
 			//stream << 1;
@@ -93,6 +92,7 @@ void Server::saveFile(TextFile *f) {
 		}
 	}
 	file.close();
+	deleteLog(f);
 }
 
 void Server::onReadyRead()
@@ -131,7 +131,7 @@ void Server::onReadyRead()
 			//caso per la modifica credenziali
 			QString username, old_password, new_password, nickname;
 			in >> username >> old_password >> new_password >> nickname;
-			//check su identità
+			//check su identitï¿½
 			changeCredentials(username, old_password, new_password, nickname, sender);
 			break;
 		}
@@ -252,7 +252,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		for (auto s : tf->getSymbols()) {
 			sendSymbol(s, true, socket);
 		}
-		//mando a tutti i client con lo stesso file aperto un avviso che c'è un nuovo connesso
+		//mando a tutti i client con lo stesso file aperto un avviso che c'ï¿½ un nuovo connesso
 		for (auto conn : tf->getConnections()) {
 			sendClient(connections.find(socket).value()->getNickname(), conn, true);
 		}
@@ -312,7 +312,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
-		
+		writeLog(filename, symbol, true);
 		
 		//mando agli altri client con il file aperto
 		for (auto client : connections) {
@@ -362,10 +362,12 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
 		tmpFile.value()->removeSymbol(sym);
+
+		writeLog(filename, sym, false);
 		//inoltro la cancellazione agli altri client interessati
 		for (auto client : connections) {
 			if (client->getFilename() == filename) {
-				sendSymbol(sym, false, client->getSocket()); //false per dire che è una cancellazione
+				sendSymbol(sym, false, client->getSocket()); //false per dire che ï¿½ una cancellazione
 			}
 		}
 	}
@@ -425,7 +427,7 @@ void Server::sendFiles(QTcpSocket* receiver){
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	out << 6;//invio codice operazione
 	
-	if (isAuthenticated(receiver)) { // controllare se è loggato
+	if (isAuthenticated(receiver)) { // controllare se ï¿½ loggato
 		out << 1; //operazione riuscita
 		QVector<QString> tmp = filesForUser[conn->getUsername()];
 		//mando siteId
@@ -441,7 +443,7 @@ void Server::sendFiles(QTcpSocket* receiver){
 			}
 		}
 		else {
-			out << 0; //mando 0, ovvero la quantità di nomi di file in arrivo
+			out << 0; //mando 0, ovvero la quantitï¿½ di nomi di file in arrivo
 		}
 	
 	}
@@ -540,7 +542,7 @@ void Server::load_files()
 			}
 			fileOwnersMap.insert(filename, utenti);
 			
-			TextFile* f = new TextFile(filename);
+			TextFile* f = new TextFile(filename);			
 			load_file(f);
 			files.insert(filename, f);
 		}
@@ -623,6 +625,9 @@ void Server::load_file(TextFile* f)
 		}
 		fin.close();
 	}	
+	if (readFromLog(f)) {
+		qDebug() << "Il file " << f->getFilename() << " ï¿½ stato ripristinato partendo dal log";
+	}
 }
 
 Server::Server(QObject* parent) : QObject(parent) 
@@ -714,4 +719,89 @@ void Server::saveAllFilesStatus() {
 	file.close();
 
 
+void Server::writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert) {
+	QString fileLogName = filename + "_log.txt";
+	QFile file(fileLogName);
+	if (file.open(QIODevice::WriteOnly | QIODevice::Append))
+	{
+		QTextStream stream(&file);
+
+		if (insert) {
+			stream << 1;
+		}
+		else {
+			stream << 0;
+		}
+		stream << " " << s->getPosition().size() << " ";
+		for (int valuePos : s->getPosition()) {
+			stream << valuePos << " ";
+		}
+
+		stream << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
+		if (s->isBold()) {
+			stream << 1 << " ";
+		}
+		else {
+			stream << 0 << " ";
+		}if (s->isItalic()) {
+			stream << 1 << " ";
+		}
+		else {
+			stream << 0 << " ";
+		}
+		if (s->isUnderlined()) {
+			stream << 1 << " ";
+		}
+		else {
+			stream << 0 << " ";
+		}
+		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
+	}
+	file.close();
+}
+
+bool Server::readFromLog(TextFile* f) {
+	QString fileLogName = f->getFilename() + "_log.txt";
+	QFile fin(fileLogName);
+	if (fin.open(QIODevice::ReadOnly)) {
+		QTextStream in(&fin);
+		while (!in.atEnd())
+		{
+			int insert, sizeVect;
+			int siteId, counter, pos;
+			int bold, italic, underlined, alignment, textSize;
+			QString colorName;
+			QString font;
+			QVector<int> vect;
+			in >> insert >> sizeVect;
+			for (int i = 0; i < sizeVect; i++) {
+				in >> pos;
+				vect.push_back(pos);
+			}
+			
+			in >> counter >> siteId;
+			QChar value;
+			in >> value; //salto lo spazio che separa pos da value
+			in >> value;
+			in >> bold >> italic >> underlined >> alignment >> textSize >> colorName >> font;
+			QColor color;
+			color.setNamedColor(colorName);
+			Symbol sym(vect, counter, siteId, value, bold == 1, italic == 1, underlined == 1, alignment, textSize, color, font);
+			
+			if(insert==1)
+				f->addSymbol(std::make_shared<Symbol>(sym));
+			else
+				f->removeSymbol(std::make_shared<Symbol>(sym));
+		}
+		fin.close();
+		//saveFile(f); //il log viene rimosso nell saveFile
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+void Server::deleteLog(TextFile* f) {
+	QString fileLogName = f->getFilename() + "_log.txt";
+	remove(fileLogName.toStdString().c_str());
 }
