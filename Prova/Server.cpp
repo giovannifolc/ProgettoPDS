@@ -192,11 +192,15 @@ void Server::onReadyRead()
 
 			/*
 			
-			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere l'owner del file
+			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere un utente abilitato ad accedere del file
 			
 			*/
 
 			if (operation == 1) {
+				/*
+				manca la URI
+				
+				*/
 				shareOwnership(filename, sender);
 			}
 			else if (operation == 2) {
@@ -593,7 +597,7 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 
 	out << tmp->getUsername() << "/" << filename;
 
-	// Michele/prova?123456789
+	// Michele/prova
 
 	sender->write(buf); 
 
