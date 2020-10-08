@@ -421,7 +421,7 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 	out << 0;//invio codice operazione
 	if (tmp != subs.end()) {
 		QString pwd = tmp.value()->getPassword();
-		if (pwd == password) {
+		if (pwd == password) { //new branch comment
 			UserConn* conn = connections.find(sender).value();
 			conn->setUsername(username);
 			conn->setPassword(password);
