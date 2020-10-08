@@ -10,6 +10,7 @@
 #include <queue>
 #include <memory>
 #include <fstream>
+#include <random>
 #include "UserConn.h"
 #include "TextFile.h"
 #include "Symbol.h"
@@ -54,6 +55,8 @@ private:
 
 	QMap<QString, QVector<QString>> fileOwnersMap; //utenti associati ad ogni file
 
+	QMap<QString, QString> fileUri; //stringa finale associata ad un file
+
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
@@ -67,5 +70,8 @@ private:
 	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
+
+	QString genRandom();
+	
 
 };

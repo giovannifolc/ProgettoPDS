@@ -2,8 +2,8 @@
 #include "Server.h"
 #include "UserConn.h"
 #include "User.h"
-#include <iostream>
-#include <bcrypt.h>
+
+
 
 
 
@@ -579,25 +579,26 @@ void Server::shareOwnership(QString filename, QTcpSocket* sender) {
     
 }
 
-/*
 
-  TODO implementare crittografia
-
-*/
 void Server::requestURI(QString filename, QTcpSocket* sender) {
+
+
+	UserConn* tmp = connections.find(sender).value();
+	//hashFunction(filename, tmp->getUsername(), tmp->getSiteId());
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
-	
+
 	out << 7 << 2; //ripsonde al caso 7 (shareOwnership) operazione 2 richiestaURI
-	//std::hash<QString> hash_fn;
-	UserConn* tmp = connections.find(sender).value();
-
-	//size_t result = hash_fn(filename + tmp->getUsername());
-
-	out << tmp->getUsername() << "/" << filename;
-
-	// Michele/prova
+	
+	if (fileUri.contains(filename)) {
+		out << tmp->getUsername() + "/" + filename + "?" + fileUri[filename];
+	}
+	else {
+	QString rand = genRandom();
+	fileUri.insert(filename,rand);
+	out << tmp->getUsername() + "/" + filename + "?" + rand;
+	}
 
 	sender->write(buf); 
 
@@ -606,6 +607,7 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 
 void Server::load_file(TextFile* f)
 {
+	
 	int nRows;
 	QFile fin(f->getFilename());
 	if (fin.open(QIODevice::ReadOnly)) {
@@ -839,4 +841,24 @@ bool Server::readFromLog(TextFile* f) {
 void Server::deleteLog(TextFile* f) {
 	QString fileLogName = f->getFilename() + "_log.txt";
 	remove(fileLogName.toStdString().c_str());
+}
+
+
+QString Server::genRandom() { // Random string generator function.
+	
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine generator(seed);
+	std::uniform_int_distribution<int> distribution(0, 90);
+	char randChar;
+	QString s;
+
+	for (int i = 0; i < 32; i++) {
+		randChar = distribution(generator) +33;
+		if (randChar == 63 || randChar == 47) {
+			randChar =+ 1;
+		}
+		s.append(randChar);
+	}
+
+	return s;
 }
