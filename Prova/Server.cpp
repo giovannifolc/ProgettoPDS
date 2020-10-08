@@ -278,7 +278,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		
 		//mando agli altri client con il file aperto
 		for (auto client : connections) {
-			if (client->getFilename() == filename) {
+			if (client->getFilename() == filename && client->getSocket() != sender) {
 				sendSymbol(symbol, true, client->getSocket());
 			}
 		}
