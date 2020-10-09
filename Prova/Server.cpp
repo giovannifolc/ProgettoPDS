@@ -270,7 +270,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		if (connections.contains(socket)) {
 			TextFile* tf = new TextFile(filename, socket);
 			files.insert(filename, tf);
-			filesForUser[connections.find(socket).value()->getUsername()].append(filename);
+			//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
 			addNewFile(filename, connections.find(socket).value()->getUsername());
 		}
 	}
@@ -535,14 +535,17 @@ void Server::load_files()
 			QStringList words = line.split(" ");
 			QVector<QString> utenti;
 			filename = words[0];
-			for (auto str : words) {
-
-
+			/*for (auto str : words) {     DA CANCELLARE--> SE NOME UTENTE = FILENAME, NON FUNZIONA.
 				if (str != filename) {
 					utenti.append(str);
 					filesForUser[str].append(filename);
 				}
+			}*/
+			for (int i = 1; i < words.size(); i++) {  //dall'indice 1 in poi ci sono elencati gli utenti che possono vedere il file.
+				utenti.append(words[i]);
+				filesForUser[words[i]].append(filename);
 			}
+
 			fileOwnersMap.insert(filename, utenti);
 
 			TextFile* f = new TextFile(filename);
@@ -668,6 +671,7 @@ void Server::onNewConnection() {
 	std::cout << "# of connected users :\t" << connections.size() << std::endl;
 }
 
+// Aggiunge un utente al file dove sono elencati gli utenti.
 void Server::addNewUserToFile(User* user) {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
@@ -710,7 +714,7 @@ void Server::addNewFile(QString filename, QString user) {
 		if (filesForUser.keys().contains(user)) {
 			filesForUser[user].append(filename);
 		}
-		else {
+		else {  
 			newFiles.append(filename);
 			filesForUser.insert(user, newFiles);
 		}

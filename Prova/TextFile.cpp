@@ -53,7 +53,7 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 int TextFile::removeSymbol(std::shared_ptr<Symbol> symbol) {
 	int index = -1;
 	for (int i = 0; i < symbols.size(); i++) {
-		if (symbols[i]->getPosition() == symbol->getPosition()) {
+		if (symbols[i]->getPosition() == symbol->getPosition() && symbols[i]->getSiteId() == symbol->getSiteId() && symbols[i]->getCounter() == symbol->getCounter()) {
 			index = i;
 			break;
 		}
