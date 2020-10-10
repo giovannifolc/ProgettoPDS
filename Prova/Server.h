@@ -10,6 +10,7 @@
 #include <queue>
 #include <memory>
 #include <fstream>
+#include <random>
 #include "UserConn.h"
 #include "TextFile.h"
 #include "Symbol.h"
@@ -50,13 +51,27 @@ private:
 
 	QMap<QString, User*> subs;//utenti iscritti
 
-	QMap<QString, QVector<QString>> filesForUser;
+	QMap<QString, QVector<QString>> filesForUser; //file associati ad ogni utente 
+
+	QMap<QString, QVector<QString>> fileOwnersMap; //utenti associati ad ogni file
+
+	QMap<QString, QString> fileUri; //stringa finale associata ad un file
 
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
-	void addNewUser();
+	void addNewUserToFile(User * user);
 	void addNewFile(QString filename, QString user);
+	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
+	void shareOwnership(QString filename,  QTcpSocket* socket);
+	void saveAllFilesStatus(); // salva il file All_files.txt
+	void requestURI(QString filename, QTcpSocket* sender);
+	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
+	bool readFromLog(TextFile* f);
+	void deleteLog(TextFile* f);
+
+	QString genRandom();
+	
 
 };
