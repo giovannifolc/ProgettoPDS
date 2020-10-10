@@ -339,7 +339,6 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos) {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
-	*in >> pos;
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		QChar value;
