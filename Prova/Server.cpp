@@ -4,6 +4,7 @@
 #include "User.h"
 
 
+
 Server::~Server() {
 }
 
@@ -91,6 +92,8 @@ void Server::saveFile(TextFile *f) {
 	file.close();
 	deleteLog(f);
 }
+
+
 
 void Server::onReadyRead()
 {
@@ -273,7 +276,9 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 
 		socket->write(buf);
 		
-		sendSymbols(tf->getSymbols().size(), tf->getSymbols(), true, socket, tf->getFilename());
+		for (auto s : tf->getSymbols()) {
+			sendSymbol(s, true, socket);
+		}
 		
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections()) {
@@ -294,6 +299,26 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		files.find(filename).value()->addConnection(socket);
 		connections.find(socket).value()->setFilename(filename);
 	}
+}
+
+void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket* socket) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	int ins;
+	if (socket->state() != QAbstractSocket::ConnectedState)
+		return;
+	if (insert) {
+		ins = 1;
+	}
+	else {
+		ins = 0;
+	}
+	out << ins;
+	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
+		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment()
+		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
+
+	socket->write(buf);
 }
 
 void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
@@ -342,7 +367,7 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	else {
 		ins = 0;
 	}
-	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins << filename << n_sym;
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins << n_sym;
 	for (int i = 0; i < n_sym; i++) {
 		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition()  << symbols[i]->getValue()
 			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
@@ -350,6 +375,8 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	}
 	socket->write(buf);
 }
+
+
 
 
 void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
