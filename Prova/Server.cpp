@@ -4,9 +4,6 @@
 #include "User.h"
 
 
-
-
-
 Server::~Server() {
 }
 
@@ -154,7 +151,7 @@ void Server::onReadyRead()
 			in >> insert >> filename >> n_sym;
 			QVector<std::shared_ptr<Symbol>> symbolsToSend;
 			for (int i = 0; i < n_sym; i++) {
-				int siteId, int counter;
+				int siteId, counter;
 				QVector<int> pos;
 				in >> siteId >> counter >> pos;
 				std::shared_ptr<Symbol> newSym;
@@ -275,19 +272,13 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
 		socket->write(buf);
-		//socket->flush();
-		for (auto s : tf->getSymbols()) {
-			sendSymbol(s, true, socket);
-		}
+		
+		sendSymbols(tf->getSymbols().size(), tf->getSymbols(), true, socket, tf->getFilename());
+		
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections()) {
 			sendClient(connections.find(socket).value()->getNickname(), conn, true);
 		}
-		/*for (auto client : clients) {
-			if (client->getFilename() == filename) {
-				sendClient(clients.find(socket).value()->getNickname(), client->getSocket());
-			}
-		}*/
 	}
 	else {
 		//creo un nuovo file
@@ -323,10 +314,6 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos) {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
-	int siteId, counter;
-	QChar value;
-	bool style;
-	QVector<int> pos;
 	*in >> pos;
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
