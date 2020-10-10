@@ -139,7 +139,7 @@ void Server::onReadyRead()
 		{
 			//caso per l'inserimento o rimozione di un simbolo
 			int insert;
-			QString filename;
+			QString filename;/*
 			in >> insert >> filename;
 			if (insert == 1) {
 				insertSymbol(filename, sender, &in);
@@ -149,6 +149,30 @@ void Server::onReadyRead()
 				QVector<int> pos;
 				in >> siteId >> counter >> pos;
 				deleteSymbol(filename, siteId, counter, pos, sender);
+			}*/
+			int n_sym;
+			in >> insert >> filename >> n_sym;
+			QVector<std::shared_ptr<Symbol>> symbolsToSend;
+			for (int i = 0; i < n_sym; i++) {
+				int siteId, int counter;
+				QVector<int> pos;
+				in >> siteId >> counter >> pos;
+				std::shared_ptr<Symbol> newSym;
+				if (insert == 1) {
+					insertSymbol(filename, sender, &in, siteId, counter, pos);
+					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+				}
+				else {
+					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					deleteSymbol(filename, siteId, counter, pos, sender);
+				}
+				symbolsToSend.push_back(newSym);
+			}
+			//mando in out
+			for (auto client : connections) {
+				if (client->getFilename() == filename && client->getSocket() != sender) {
+					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filename); //false per dire che � una cancellazione
+				}
 			}
 			break;
 			//voglio rispondere con qualcosa? TODO
@@ -296,14 +320,14 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 	//socket->flush();
 }
 
-void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos) {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
 	int siteId, counter;
 	QChar value;
 	bool style;
 	QVector<int> pos;
-	*in >> siteId >> counter >> pos;
+	*in >> pos;
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		QChar value;
@@ -316,17 +340,10 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
 		writeLog(filename, symbol, true);
-
-		//mando agli altri client con il file aperto
-		for (auto client : connections) {
-			if (client->getFilename() == filename && client->getSocket() != sender) {
-				sendSymbol(symbol, true, client->getSocket());
-			}
-		}
 	}
 }
 
-void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket) {
+void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int ins;
@@ -338,23 +355,13 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 	else {
 		ins = 0;
 	}
-	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
-	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
-		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment()
-		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
-	/*if (symbol->isStyle()) {
-		std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-
-		out << ss->isStyle() << ss->getPosition() << ss->getCounter() << ss->getSiteId() << ss->isBold() << ss->isItalic() << ss->isUnderlined()
-			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins << filename << n_sym;
+	for (int i = 0; i < n_sym; i++) {
+		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition()  << symbols[i]->getValue()
+			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
+			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
 	}
-	else {
-		//TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
-		//out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
-		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
-	}*/
 	socket->write(buf);
-	//socket->flush();
 }
 
 
@@ -363,16 +370,9 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 	auto tmpFile = files.find(filename);
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
+		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
 		tmpFile.value()->removeSymbol(sym);
-
 		writeLog(filename, sym, false);
-		//inoltro la cancellazione agli altri client interessati
-		for (auto client : connections) {
-			if (client->getFilename() == filename && client->getSocket() != sender) {
-				sendSymbol(sym, false, client->getSocket()); //false per dire che � una cancellazione
-			}
-		}
 	}
 }
 

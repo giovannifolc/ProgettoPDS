@@ -53,7 +53,7 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 int TextFile::removeSymbol(std::shared_ptr<Symbol> symbol) {
 	int index = -1;
 	for (int i = 0; i < symbols.size(); i++) {
-		if (symbols[i]->getPosition() == symbol->getPosition() && symbols[i]->getSiteId() == symbol->getSiteId() && symbols[i]->getCounter() == symbol->getCounter()) {
+		if (symbols[i]->getSiteId() == symbol->getSiteId() && symbols[i]->getCounter() == symbol->getCounter()) {
 			index = i;
 			break;
 		}
@@ -64,10 +64,10 @@ int TextFile::removeSymbol(std::shared_ptr<Symbol> symbol) {
 	return index;
 }
 
-std::shared_ptr<Symbol> TextFile::getSymbol(int siteId, int counter, QVector<int> pos) {
+std::shared_ptr<Symbol> TextFile::getSymbol(int siteId, int counter) {
 	int index = -1;
 	for (int i = 0; i < symbols.size(); i++) {
-		if (symbols[i]->getPosition() == pos && siteId == symbols[i]->getSiteId() && symbols[i]->getCounter() == counter) {
+		if (siteId == symbols[i]->getSiteId() && symbols[i]->getCounter() == counter) {
 			index = i;
 			break;
 		}
