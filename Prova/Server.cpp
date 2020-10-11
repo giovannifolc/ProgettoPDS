@@ -207,34 +207,36 @@ void Server::onReadyRead()
 			/*
 			   Implemento la share ownership
 			*/
-			QString filename;
-			QString username;
+			
 			int operation;
 
-			in >> operation >> filename;
-
-
-			/*
-
-			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere un utente abilitato ad accedere del file
-
-			*/
+			in >> operation;
 
 			if (operation == 1) {
-				/*
-				manca la URI
 
-				*/
-				shareOwnership(filename, sender);
+				QString uri;
+				in >> uri;
+
+				shareOwnership(uri, sender);
 			}
 			else if (operation == 2) {
 
-				requestURI(filename, sender);
+				QString filename;
+				in >> filename;
+
+				// Condivido l'URI solo se l'utente che me lo chiede ne ha il diritto
+				if (fileOwnersMap[filename].contains(connections.find(sender).value()->getUsername())) {
+					requestURI(filename, sender);
+				}		
+				else {
+					/*
+					 ERRORE
+					*/		
+				}
 			}
 			else {
 				/*
-				  ERRORE
-
+				 ERRORE
 				*/
 			}
 
@@ -428,6 +430,12 @@ void Server::registration(QString username, QString password, QString nickname, 
 		addNewUserToFile(user);
 		connections.insert(sender, conn);
 		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
+
+		// Creo una cartella per il nuovo utente
+		/*QString path = QDir().currentPath() + "/" + username;
+		if (!QDir().exists(path)) {			
+			QDir().mkpath(path);
+		}*/
 	}
 	else {
 		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
@@ -533,8 +541,7 @@ void Server::load_subs()
 		std::cout << "File subscribers.txt non aperto" << std::endl;
 }
 
-void Server::load_files()
-{
+void Server::load_files() {
 	QString filename;
 	QFile fin("all_files.txt");
 
@@ -568,6 +575,22 @@ void Server::load_files()
 		fin.close();
 	}
 	else std::cout << "File 'all_files.txt' not opened" << std::endl;
+
+	QString uri;
+	QFile fin2("file_uri.txt");
+
+	if (fin2.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		QTextStream in(&fin2);
+		while (!in.atEnd()) {
+			//stile file; nome_file uri_file 
+			QString line = in.readLine();
+			QStringList words = line.split(" ");
+			filename = words[0];
+			uri = words[1];
+			fileUri.insert(filename, uri);
+		}
+		fin2.close();
+	}
 }
 
 
@@ -575,24 +598,31 @@ void Server::load_files()
 /*
    Funzione per permette l'accettazione di un invito a collaborare
 */
-void Server::shareOwnership(QString filename, QTcpSocket* sender) {
-
+void Server::shareOwnership(QString uri, QTcpSocket* sender) {
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 
 	UserConn* tmp = connections.find(sender).value();
 
-
-	fileOwnersMap[filename].append(tmp->getUsername());
-	filesForUser[tmp->getUsername()].append(filename);
-	saveAllFilesStatus();
-
-	out << 7 << " " << filename;
+	bool flag = false;
+	for each (QString filename in fileUri.keys())
+	{
+		if (fileUri[filename] == uri) {
+			fileOwnersMap[filename].append(tmp->getUsername());
+			filesForUser[tmp->getUsername()].append(filename);
+			saveAllFilesStatus();
+			out << 7 << 1 << filename; // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+			flag = true;
+			break;
+		}
+	}
+	
+	if (!flag) {
+		out << 7 << 3; // Uri non esisitente, client visualizzerà errore
+	}
 
 	sender->write(buf);
-
-
 }
 
 
@@ -608,12 +638,10 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 	out << 7 << 2; //ripsonde al caso 7 (shareOwnership) operazione 2 richiestaURI
 
 	if (fileUri.contains(filename)) {
-		out << tmp->getUsername() + "/" + filename + "?" + fileUri[filename];
+		out << fileUri[filename];
 	}
 	else {
-	QString rand = genRandom();
-	fileUri.insert(filename,rand);
-	out << tmp->getUsername() + "/" + filename + "?" + rand;
+		qDebug() << "Errore: impossibile trovare URI corrispondente al nome file"; // l'URI viene creata alla creazione del file, e memorizzata all'interno di fileUri e nel file file_uri.txt
 	}
 
 	sender->write(buf);
@@ -700,6 +728,8 @@ void Server::addNewUserToFile(User* user) {
 	file.close();
 }
 
+
+
 void Server::rewriteUsersFile() {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -715,25 +745,43 @@ void Server::rewriteUsersFile() {
 
 void Server::addNewFile(QString filename, QString user) {
 	QFile file("all_files.txt");
+
+	// QString filepath = user + "/" + filename;
+	QString filepath = filename;
+
 	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
 
 		QTextStream output(&file);
 		QVector<QString> utenti;
 		QVector<QString> newFiles;
 		utenti.append(user);
-		output << filename << " " << user << "\n";
-		fileOwnersMap.insert(filename, utenti);
+
+		output << filepath << " " << user << "\n";
+		fileOwnersMap.insert(filepath, utenti);
 
 		if (filesForUser.keys().contains(user)) {
-			filesForUser[user].append(filename);
+			filesForUser[user].append(filepath);
 		}
 		else {  
-			newFiles.append(filename);
+			newFiles.append(filepath);
 			filesForUser.insert(user, newFiles);
 		}
 	}
 
+	QFile file2("file_uri.txt");
+	if (file2.open(QIODevice::ReadOnly | QIODevice::Append)) {
+
+		QTextStream output(&file2);
+		QString rand = genRandom();
+		while (fileUri.values().contains(rand)) {
+			rand = genRandom();
+		}
+		output << filepath << " " << rand << "\n";
+		fileUri.insert(filepath, rand);
+	}
+
 	file.close();
+	file2.close();
 }
 
 

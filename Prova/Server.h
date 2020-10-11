@@ -65,7 +65,7 @@ private:
 	void addNewFile(QString filename, QString user);
 	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
-	void shareOwnership(QString filename, QTcpSocket* socket);
+	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
 	void requestURI(QString filename, QTcpSocket* sender);
 	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
