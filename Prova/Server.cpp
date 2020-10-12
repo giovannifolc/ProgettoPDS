@@ -152,9 +152,18 @@ void Server::onReadyRead()
 		}
 		case 3:
 		{
+			/*
+			   DA MODIFICARE
+			
+			*/
+
+
 			//caso per l'inserimento o rimozione di un simbolo
 			int insert;
-			QString filename;/*
+			QString filename;
+			
+			
+			/*
 			in >> insert >> filename;
 			if (insert == 1) {
 				insertSymbol(filename, sender, &in);
@@ -463,7 +472,7 @@ void Server::registration(QString username, QString password, QString nickname, 
 			subs.insert(username, user);
 			addNewUserToFile(user);
 			connections.insert(sender, conn);
-			out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
+			out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId() << user->getUsername() << user->getNickname(); //operazione riuscita e termine
 		}
 		else {
 			out << 1 /*#operazione*/ << 0; //operazione fallita e termine
@@ -529,7 +538,7 @@ bool Server::login(QString username, QString password, QTcpSocket* sender) {
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
 			conn->setSiteId(tmp.value()->getSiteId());
-			out << 1 << tmp.value()->getNickname(); //operazione riuscita  e nickname
+			out << 1 << username << tmp.value()->getNickname(); //operazione riuscita  e nickname
 			sender->write(buf);
 			//sender->flush();
 			return true;
@@ -625,9 +634,9 @@ void Server::load_files()
 			//stile file; nome_file uri_file 
 			QString line = in.readLine();
 			QStringList words = line.split(" ");
-			filename = words[0];
+			filePath = words[0];
 			uri = words[1];
-			fileUri.insert(filename, uri);
+			fileUri.insert(filePath, uri);
 		}
 		fin2.close();
 	}
@@ -796,10 +805,9 @@ void Server::rewriteUsersFile() {
 	file.close();
 }
 
-void Server::addNewFile(QString filename, QString user) {
+void Server::addNewFile(QString filePath, QString user) {
 	QFile file("all_files.txt");
 
-	QString filePath = user + "/" + filename;
 
 	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
 

@@ -63,7 +63,7 @@ private:
 	void load_file(TextFile* f);
 	void addNewUserToFile(User* user);
 	void addNewFile(QString filename, QString user);
-	void saveUsersFile();
+	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
 	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
