@@ -19,7 +19,7 @@ void Server::onDisconnected()
 		}
 		f->removeConnection(socket);//rimozione utente dai connessi al file
 		std::cout << "UTENTI CONNESSI A " << filename.toStdString() << ":\t" << f->getConnections().size() << std::endl;
-		sendClient(connections.find(socket).value()->getNickname(), socket, false);
+		sendClient(connections.find(socket).value()->getSiteId(), connections.find(socket).value()->getNickname(), socket, false);
 	}
 	connections.remove(socket);
 	std::cout << "UTENTI CONNESSI:\t" << connections.size() << std::endl;
@@ -193,7 +193,7 @@ void Server::onReadyRead()
 
 			files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
 			for (auto conn : files.find(filename).value()->getConnections()) {
-				sendClient(connections.find(sender).value()->getNickname(), conn, false);
+				sendClient(connections.find(sender).value()->getSiteId(), connections.find(sender).value()->getNickname(), conn, false);
 			}
 			saveIfLast(filename);
 			break;
