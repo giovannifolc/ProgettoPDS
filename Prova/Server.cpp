@@ -161,7 +161,8 @@ void Server::onReadyRead()
 			//caso per l'inserimento o rimozione di un simbolo
 			int insert;
 			QString filename;
-			
+			QString creatore;
+			QString filePath;
 			
 			/*
 			in >> insert >> filename;
@@ -175,27 +176,30 @@ void Server::onReadyRead()
 				deleteSymbol(filename, siteId, counter, pos, sender);
 			}*/
 			int n_sym;
-			in >> insert >> filename >> n_sym;
+			in >> insert >> filename >> creatore >> n_sym;
 			QVector<std::shared_ptr<Symbol>> symbolsToSend;
+
+			filePath = creatore + "/" + filename;
+
 			for (int i = 0; i < n_sym; i++) {
 				int siteId, counter;
 				QVector<int> pos;
 				in >> siteId >> counter >> pos;
 				std::shared_ptr<Symbol> newSym;
 				if (insert == 1) {
-					insertSymbol(filename, sender, &in, siteId, counter, pos);
-					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					insertSymbol(filePath, sender, &in, siteId, counter, pos);
+					newSym = files.find(filePath).value()->getSymbol(siteId, counter);
 				}
 				else {
-					newSym = files.find(filename).value()->getSymbol(siteId, counter);
-					deleteSymbol(filename, siteId, counter, pos, sender);
+					newSym = files.find(filePath).value()->getSymbol(siteId, counter);
+					deleteSymbol(filePath, siteId, counter, pos, sender);
 				}
 				symbolsToSend.push_back(newSym);
 			}
 			//mando in out
 			for (auto client : connections) {
 				if (client->getFilename() == filename && client->getSocket() != sender) {
-					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filename); //false per dire che � una cancellazione
+					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filePath); //false per dire che � una cancellazione
 				}
 			}
 			break;
@@ -222,14 +226,19 @@ void Server::onReadyRead()
 		{
 			//segnalazione di disconnessione da un file
 			QString filename;
-			in >> filename;
+			QString creatore;
+			QString filePath;
+
+			in >> filename >> creatore;
+
+			filePath = creatore + "/" + filename;
 			connections.find(sender).value()->setFilename("");
 
-			files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
-			for (auto conn : files.find(filename).value()->getConnections()) {
+			files.find(filePath).value()->removeConnection(sender);//rimozione utente dai connessi al file
+			for (auto conn : files.find(filePath).value()->getConnections()) {
 				sendClient(connections.find(sender).value()->getNickname(), conn, false);
 			}
-			saveIfLast(filename);
+			saveIfLast(filePath);
 			break;
 		}
 		case 6:
@@ -256,11 +265,14 @@ void Server::onReadyRead()
 			else if (operation == 2) {
 
 				QString filename;
-				in >> filename;
+				QString creatore;
+				in >> filename >> creatore;
+
+				QString filePath = creatore + "/" + filename;
 
 				// Condivido l'URI solo se l'utente che me lo chiede ne ha il diritto
-				if (fileOwnersMap[filename].contains(connections.find(sender).value()->getUsername())) {
-					requestURI(filename, sender);
+				if (fileOwnersMap[filePath].contains(connections.find(sender).value()->getUsername())) {
+					requestURI(filePath, sender);
 				}		
 				else {
 					/*
@@ -662,7 +674,7 @@ void Server::load_file(TextFile* f)
 	{
 
 		int nRows;
-		QFile fin(d.filePath(f->getFilename()));
+		QFile fin(d.filePath(filePath));
 		if (fin.open(QIODevice::ReadOnly)) {
 			QTextStream in(&fin);
 			in >> nRows;
@@ -712,7 +724,7 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender) {
 			fileOwnersMap[filename].append(tmp->getUsername());
 			filesForUser[tmp->getUsername()].append(filename);
 			saveAllFilesStatus();
-			out << 7 << 1 << filename << tmp->getUsername() << tmp->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+			out << 7 << 1 << files[filename]->getFilename() << subs[fileOwnersMap[filename].first()]->getUsername() << subs[fileOwnersMap[filename].first()]->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
 			flag = true;
 			break;
 		}
@@ -726,7 +738,7 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender) {
 }
 
 
-void Server::requestURI(QString filename, QTcpSocket* sender) {
+void Server::requestURI(QString filePath, QTcpSocket* sender) {
 
 
 	UserConn* tmp = connections.find(sender).value();
@@ -737,8 +749,8 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 
 	out << 7 << 2; //ripsonde al caso 7 (shareOwnership) operazione 2 richiestaURI
 
-	if (fileUri.contains(filename)) {
-		out << fileUri[filename];
+	if (fileUri.contains(filePath)) {
+		out << fileUri[filePath];
 	}
 	else {
 		qDebug() << "Errore: impossibile trovare URI corrispondente al nome file"; // l'URI viene creata alla creazione del file, e memorizzata all'interno di fileUri e nel file file_uri.txt

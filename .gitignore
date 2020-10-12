@@ -341,3 +341,4 @@ ASALocalRun/
 healthchecksdb
 Prova/Prova.vcxproj
 Prova/GeneratedFiles/moc_predefs.h
+*.txt
