@@ -430,12 +430,6 @@ void Server::registration(QString username, QString password, QString nickname, 
 		addNewUserToFile(user);
 		connections.insert(sender, conn);
 		out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId(); //operazione riuscita e termine
-
-		// Creo una cartella per il nuovo utente
-		/*QString path = QDir().currentPath() + "/" + username;
-		if (!QDir().exists(path)) {			
-			QDir().mkpath(path);
-		}*/
 	}
 	else {
 		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
@@ -612,7 +606,7 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender) {
 			fileOwnersMap[filename].append(tmp->getUsername());
 			filesForUser[tmp->getUsername()].append(filename);
 			saveAllFilesStatus();
-			out << 7 << 1 << filename; // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+			out << 7 << 1 << filename << tmp->getUsername() << tmp->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
 			flag = true;
 			break;
 		}
