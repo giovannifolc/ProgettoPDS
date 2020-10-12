@@ -279,10 +279,16 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		for (auto s : tf->getSymbols()) {
 			sendSymbol(s, true, socket);
 		}
+
+		out << tf->getConnections().size(); //mando la quantità di client già connessi
+
+		for (auto conn : tf->getConnections()) {
+			out << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
+		}
 		
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections()) {
-			sendClient(connections.find(socket).value()->getNickname(), conn, true);
+			sendClient(connections.find(socket).value()->getSiteId(), connections.find(socket).value()->getNickname(), conn, true);
 		}
 	}
 	else {
@@ -321,11 +327,11 @@ void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpS
 	socket->write(buf);
 }
 
-void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
+void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 
-	out << 8 << nickname; //8 lo uso come flag per indicare un nuovo connesso
+	out << 8 << siteId << nickname; //8 lo uso come flag per indicare un nuovo connesso
 	if (insert) {
 		out << 1; //deve aggiungere la persona
 	}
