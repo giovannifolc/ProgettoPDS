@@ -109,6 +109,7 @@ void Server::saveFile(TextFile* f) {
 }
 
 
+
 void Server::onReadyRead()
 {
 	QTcpSocket* sender = static_cast<QTcpSocket*>(QObject::sender());
@@ -153,7 +154,7 @@ void Server::onReadyRead()
 		{
 			//caso per l'inserimento o rimozione di un simbolo
 			int insert;
-			QString filename;
+			QString filename;/*
 			in >> insert >> filename;
 			if (insert == 1) {
 				insertSymbol(filename, sender, &in);
@@ -163,6 +164,30 @@ void Server::onReadyRead()
 				QVector<int> pos;
 				in >> siteId >> counter >> pos;
 				deleteSymbol(filename, siteId, counter, pos, sender);
+			}*/
+			int n_sym;
+			in >> insert >> filename >> n_sym;
+			QVector<std::shared_ptr<Symbol>> symbolsToSend;
+			for (int i = 0; i < n_sym; i++) {
+				int siteId, counter;
+				QVector<int> pos;
+				in >> siteId >> counter >> pos;
+				std::shared_ptr<Symbol> newSym;
+				if (insert == 1) {
+					insertSymbol(filename, sender, &in, siteId, counter, pos);
+					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+				}
+				else {
+					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					deleteSymbol(filename, siteId, counter, pos, sender);
+				}
+				symbolsToSend.push_back(newSym);
+			}
+			//mando in out
+			for (auto client : connections) {
+				if (client->getFilename() == filename && client->getSocket() != sender) {
+					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filename); //false per dire che � una cancellazione
+				}
 			}
 			break;
 			//voglio rispondere con qualcosa? TODO
@@ -207,34 +232,36 @@ void Server::onReadyRead()
 			/*
 			   Implemento la share ownership
 			*/
-			QString filename;
-			QString username;
+			
 			int operation;
 
-			in >> operation >> filename;
-
-
-			/*
-
-			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere un utente abilitato ad accedere del file
-
-			*/
+			in >> operation;
 
 			if (operation == 1) {
-				/*
-				manca la URI
 
-				*/
-				shareOwnership(filename, sender);
+				QString uri;
+				in >> uri;
+
+				shareOwnership(uri, sender);
 			}
 			else if (operation == 2) {
 
-				requestURI(filename, sender);
+				QString filename;
+				in >> filename;
+
+				// Condivido l'URI solo se l'utente che me lo chiede ne ha il diritto
+				if (fileOwnersMap[filename].contains(connections.find(sender).value()->getUsername())) {
+					requestURI(filename, sender);
+				}		
+				else {
+					/*
+					 ERRORE
+					*/		
+				}
 			}
 			else {
 				/*
-				  ERRORE
-
+				 ERRORE
 				*/
 			}
 
@@ -276,19 +303,15 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
 		socket->write(buf);
-		//socket->flush();
+		
 		for (auto s : tf->getSymbols()) {
 			sendSymbol(s, true, socket);
 		}
+		
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections()) {
 			sendClient(connections.find(socket).value()->getNickname(), conn, true);
 		}
-		/*for (auto client : clients) {
-			if (client->getFilename() == filename) {
-				sendClient(clients.find(socket).value()->getNickname(), client->getSocket());
-			}
-		}*/
 	}
 	else {
 		//creo un nuovo file
@@ -306,6 +329,26 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 	}
 }
 
+void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket* socket) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	int ins;
+	if (socket->state() != QAbstractSocket::ConnectedState)
+		return;
+	if (insert) {
+		ins = 1;
+	}
+	else {
+		ins = 0;
+	}
+	out << ins;
+	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
+		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment()
+		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
+
+	socket->write(buf);
+}
+
 void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -321,14 +364,9 @@ void Server::sendClient(QString nickname, QTcpSocket* socket, bool insert) {
 	//socket->flush();
 }
 
-void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in) {
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos) {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
-	int siteId, counter;
-	QChar value;
-	bool style;
-	QVector<int> pos;
-	*in >> siteId >> counter >> pos;
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
 		QChar value;
@@ -341,17 +379,10 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in)
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
 		writeLog(filename, symbol, true);
-
-		//mando agli altri client con il file aperto
-		for (auto client : connections) {
-			if (client->getFilename() == filename && client->getSocket() != sender) {
-				sendSymbol(symbol, true, client->getSocket());
-			}
-		}
 	}
 }
 
-void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket) {
+void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int ins;
@@ -363,24 +394,16 @@ void Server::sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket*
 	else {
 		ins = 0;
 	}
-	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
-	out << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId() << symbol->getValue()
-		<< symbol->isBold() << symbol->isItalic() << symbol->isUnderlined() << symbol->getAlignment()
-		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
-	/*if (symbol->isStyle()) {
-		std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-
-		out << ss->isStyle() << ss->getPosition() << ss->getCounter() << ss->getSiteId() << ss->isBold() << ss->isItalic() << ss->isUnderlined()
-			<< ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont();
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins << n_sym;
+	for (int i = 0; i < n_sym; i++) {
+		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition()  << symbols[i]->getValue()
+			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
+			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
 	}
-	else {
-		//TextSymbol* ts = dynamic_cast<TextSymbol*>(symbol);
-		//out << ts->isStyle() << ts->getPosition() << ts->getCounter() << ts->getSiteId() << ts->getValue();
-		out << symbol->isStyle() << symbol->getPosition() << symbol->getCounter() << symbol->getSiteId();
-	}*/
 	socket->write(buf);
-	//socket->flush();
 }
+
+
 
 
 void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender) {
@@ -388,16 +411,9 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 	auto tmpFile = files.find(filename);
 	//controlli
 	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end()) {
-		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter, pos);
+		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
 		tmpFile.value()->removeSymbol(sym);
-
 		writeLog(filename, sym, false);
-		//inoltro la cancellazione agli altri client interessati
-		for (auto client : connections) {
-			if (client->getFilename() == filename && client->getSocket() != sender) {
-				sendSymbol(sym, false, client->getSocket()); //false per dire che � una cancellazione
-			}
-		}
 	}
 }
 
@@ -599,6 +615,22 @@ void Server::load_files()
 		fin.close();
 	}
 	else std::cout << "File 'all_files.txt' not opened" << std::endl;
+
+	QString uri;
+	QFile fin2("file_uri.txt");
+
+	if (fin2.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		QTextStream in(&fin2);
+		while (!in.atEnd()) {
+			//stile file; nome_file uri_file 
+			QString line = in.readLine();
+			QStringList words = line.split(" ");
+			filename = words[0];
+			uri = words[1];
+			fileUri.insert(filename, uri);
+		}
+		fin2.close();
+	}
 }
 
 void Server::load_file(TextFile* f)
@@ -657,24 +689,31 @@ void Server::load_file(TextFile* f)
 /*
    Funzione per permette l'accettazione di un invito a collaborare
 */
-void Server::shareOwnership(QString filename, QTcpSocket* sender) {
-
+void Server::shareOwnership(QString uri, QTcpSocket* sender) {
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 
 	UserConn* tmp = connections.find(sender).value();
 
-
-	fileOwnersMap[filename].append(tmp->getUsername());
-	filesForUser[tmp->getUsername()].append(filename);
-	saveAllFilesStatus();
-
-	out << 7 << " " << filename;
+	bool flag = false;
+	for each (QString filename in fileUri.keys())
+	{
+		if (fileUri[filename] == uri) {
+			fileOwnersMap[filename].append(tmp->getUsername());
+			filesForUser[tmp->getUsername()].append(filename);
+			saveAllFilesStatus();
+			out << 7 << 1 << filename << tmp->getUsername() << tmp->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+			flag = true;
+			break;
+		}
+	}
+	
+	if (!flag) {
+		out << 7 << 3; // Uri non esisitente, client visualizzerà errore
+	}
 
 	sender->write(buf);
-
-
 }
 
 
@@ -690,12 +729,10 @@ void Server::requestURI(QString filename, QTcpSocket* sender) {
 	out << 7 << 2; //ripsonde al caso 7 (shareOwnership) operazione 2 richiestaURI
 
 	if (fileUri.contains(filename)) {
-		out << tmp->getUsername() + "/" + filename + "?" + fileUri[filename];
+		out << fileUri[filename];
 	}
 	else {
-		QString rand = genRandom();
-		fileUri.insert(filename, rand);
-		out << tmp->getUsername() + "/" + filename + "?" + rand;
+		qDebug() << "Errore: impossibile trovare URI corrispondente al nome file"; // l'URI viene creata alla creazione del file, e memorizzata all'interno di fileUri e nel file file_uri.txt
 	}
 
 	sender->write(buf);
@@ -746,8 +783,9 @@ void Server::addNewUserToFile(User* user) {
 	file.close();
 }
 
-// Salva il file "subscribers.txt"
-void Server::saveUsersFile() {
+
+
+void Server::rewriteUsersFile() {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 		QTextStream output(&file);
@@ -760,13 +798,16 @@ void Server::saveUsersFile() {
 
 void Server::addNewFile(QString filename, QString user) {
 	QFile file("all_files.txt");
+
+	QString filePath = user + "/" + filename;
+
 	if (file.open(QIODevice::ReadOnly | QIODevice::Append)) {
 
 		QTextStream output(&file);
 		QVector<QString> utenti;
 		QVector<QString> newFiles;
 		utenti.append(user);
-		QString filePath = user + "/" + filename;
+		
 		output << filePath << " " << user << "\n";
 		fileOwnersMap.insert(filePath, utenti);
 
@@ -779,7 +820,20 @@ void Server::addNewFile(QString filename, QString user) {
 		}
 	}
 
+	QFile file2("file_uri.txt");
+	if (file2.open(QIODevice::ReadOnly | QIODevice::Append)) {
+
+		QTextStream output(&file2);
+		QString rand = genRandom();
+		while (fileUri.values().contains(rand)) {
+			rand = genRandom();
+		}
+		output << filePath << " " << rand << "\n";
+		fileUri.insert(filePath, rand);
+	}
+
 	file.close();
+	file2.close();
 }
 
 

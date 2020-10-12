@@ -16,26 +16,27 @@
 #include "Symbol.h"
 
 class Server :
-    public QObject
+	public QObject
 {
-    Q_OBJECT
+	Q_OBJECT
 public:
-        explicit Server(QObject* parent = 0);
-        ~Server();
+	explicit Server(QObject* parent = 0);
+	~Server();
 Q_SIGNALS:/*definizione di segnali*/
 	void closed();
 
 private slots:
 	void onNewConnection();
 	void onDisconnected();
-	void saveFile(TextFile *f);
+	void saveFile(TextFile* f);
 	void onReadyRead();
 	void saveIfLast(QString filename);
 	void changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver);
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QTcpSocket* receiver);
-	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
+	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
+	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename);
 	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket);
 	void sendFile(QString filename, QString filePath, QTcpSocket* socket);
 	void sendClient(QString nickname, QTcpSocket* socket, bool insert);
@@ -60,11 +61,11 @@ private:
 	void load_subs();
 	void load_files();
 	void load_file(TextFile* f);
-	void addNewUserToFile(User * user);
+	void addNewUserToFile(User* user);
 	void addNewFile(QString filename, QString user);
 	void saveUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
-	void shareOwnership(QString filename,  QTcpSocket* socket);
+	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
 	void requestURI(QString filename, QTcpSocket* sender);
 	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
@@ -72,6 +73,6 @@ private:
 	void deleteLog(TextFile* f);
 
 	QString genRandom();
-	
+
 
 };
