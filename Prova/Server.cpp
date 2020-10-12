@@ -138,6 +138,22 @@ void Server::onReadyRead()
 			//caso per la registrazione
 			QString username, password, nickname;
 			in >> username >> password >> nickname;
+
+			if (username.contains("/") || username.contains("\\") || username.contains(":") ||
+				username.contains("*") || username.contains("?") || username.contains("\"") ||
+				username.contains("<") || username.contains(">") || username.contains("|"))
+			{
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+
+				out << 150;
+				sender->write(buf);
+				break;
+			}
+
+			
+
+
 			registration(username, password, nickname, sender);
 			break;
 		}
@@ -209,17 +225,27 @@ void Server::onReadyRead()
 		{	//richiesta di un file da parte di un client
 			QString filename;
 			QString creatore;
+		    
+
+			if (filename.contains("/") || filename.contains("\\") || filename.contains(":") ||
+				filename.contains("*") || filename.contains("?") || filename.contains("\"") ||
+				filename.contains("<") || filename.contains(">") || filename.contains("|"))
+			{
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+
+				out << 150;
+				sender->write(buf);
+				break;
+			}
 			
-			/*
-			  ricorda di cambiare il client ti deve passare solo il nome;
-			  
-			*/
-			
+
 			in >> filename >> creatore;
 
 			QString filePath = creatore + "/" + filename;
 
-			sendFile(filename, filePath ,sender);
+			sendFile(filename, filePath, sender);
+			
 			break;
 		}
 		case 5:
@@ -312,16 +338,18 @@ void Server::saveIfLast(QString filename) {
 	}
 }
 
+
 void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	
+	bool flag = false;
 
 	if (files.contains(filePath)) {
 
 		TextFile* tf = files.find(filePath).value();
 
-		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
+		out << 4 /*# operazione*/<< 1 << tf->getSymbols().size(); //mando in numero di simboli in arrivo
 
 		socket->write(buf);
 		
@@ -338,13 +366,20 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 		//creo un nuovo file
 		if (connections.contains(socket)) {
 			TextFile* tf = new TextFile(filename, filePath, socket);
-			files.insert(filePath, tf);
-			//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
-			addNewFile(filePath, connections.find(socket).value()->getUsername());
+			if (files.contains(filePath)) {
+				flag = true;
+				out << 4 << 2; //Errore generico da gestire
+				socket->write(buf);
+			}
+			else {
+				files.insert(filePath, tf);
+				//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
+				addNewFile(filePath, connections.find(socket).value()->getUsername());
+			}
 		}
 	}
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
-	if (connections.contains(socket)) {
+	if (connections.contains(socket) && !flag) {
 		files.find(filePath).value()->addConnection(socket);
 		connections.find(socket).value()->setFilename(filePath);
 	}
@@ -478,22 +513,33 @@ void Server::registration(QString username, QString password, QString nickname, 
 		/*
 			creazione cartella per utente
 		*/
-
-		if (d.mkdir(user->getUsername())) {
-			//  successo
-			subs.insert(username, user);
-			addNewUserToFile(user);
-			connections.insert(sender, conn);
-			out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId() << user->getUsername() << user->getNickname(); //operazione riuscita e termine
+		bool nick = false;
+		for (User* u : subs.values()) {
+			if (u->getNickname() == nickname) {
+				nick = true;
+				break;
+			}
+		}
+		if (nick) {
+			out << 1 /*#operazione*/ << 3; //operazione fallita nickname già esistente e termine
 		}
 		else {
-			out << 1 /*#operazione*/ << 0; //operazione fallita e termine
+			if (d.mkdir(user->getUsername())) {
+				//  successo
+				subs.insert(username, user);
+				addNewUserToFile(user);
+				connections.insert(sender, conn);
+				out << 1 /*#operazione*/ << 1 /*successo*/ << user->getSiteId() << user->getUsername() << user->getNickname(); //operazione riuscita e termine
+			}
+			else {
+				out << 1 /*#operazione*/ << 0; //operazione fallita e termine
+			}
 		}
 
 
 	}
 	else {
-		out << 1 /*#operazione*/ << 0; //operazione fallita e termine
+		out << 1 /*#operazione*/ << 2; //operazione fallita username esistente e termine
 	}
 	sender->write(buf);
 	//sender->flush();
