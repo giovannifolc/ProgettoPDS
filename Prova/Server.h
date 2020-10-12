@@ -37,7 +37,7 @@ private slots:
 	void sendFiles(QTcpSocket* receiver);
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in);
 	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket);
-	void sendFile(QString filename, QTcpSocket* socket);
+	void sendFile(QString filename, QString filePath, QTcpSocket* socket);
 	void sendClient(QString nickname, QTcpSocket* socket, bool insert);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
@@ -62,7 +62,7 @@ private:
 	void load_file(TextFile* f);
 	void addNewUserToFile(User * user);
 	void addNewFile(QString filename, QString user);
-	void rewriteUsersFile();
+	void saveUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
 	void shareOwnership(QString filename,  QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
