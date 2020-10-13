@@ -267,6 +267,8 @@ void Server::saveIfLast(QString filename) {
 void Server::sendFile(QString filename, QTcpSocket* socket) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
+	QByteArray buf2;
+	QDataStream out2(&buf2, QIODevice::WriteOnly);
 
 	if (files.contains(filename)) {
 
@@ -277,13 +279,13 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		socket->write(buf);
 		
 		for (auto s : tf->getSymbols()) {
-			sendSymbol(s, true, socket);
+			sendSymbol(s, true, socket);  //POTREMMO OTTIMIZZARE con una scrittura di un blocco di simboli e non mandandoli uno alla volta
 		}
-
-		out << tf->getConnections().size(); //mando la quantità di client già connessi
+		int size = tf->getConnections().size();
+		out2 << size;// tf->getConnections().size(); //mando la quantità di client già connessi
 
 		for (auto conn : tf->getConnections()) {
-			out << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
+			out2 << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
 		}
 		
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
@@ -305,6 +307,7 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 		files.find(filename).value()->addConnection(socket);
 		connections.find(socket).value()->setFilename(filename);
 	}
+	socket->write(buf2);
 }
 
 void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket* socket) {
