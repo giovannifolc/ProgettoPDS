@@ -1,12 +1,12 @@
 #include "TextFile.h"
 
-TextFile::TextFile(QString filename, QString filePath):filename(filename),filePath(filePath)
+TextFile::TextFile(QString filename, QString filePath, QString creatore):filename(filename),filePath(filePath),creatore(creatore)
 {
 	
 }
 
 
-TextFile::TextFile(QString filename, QString filePath, QTcpSocket* connection): filename(filename), filePath(filePath)
+TextFile::TextFile(QString filename, QString filePath, QString creatore, QTcpSocket* connection): filename(filename), filePath(filePath), creatore(creatore)
 {
 	connections.push_back(connection);
 
@@ -22,6 +22,11 @@ QString TextFile::getFilename()
 QString TextFile::getFilePath()
 {
 	return filePath;
+}
+
+QString TextFile::getCreatore()
+{
+	return this->creatore;
 }
 
 QVector<std::shared_ptr<Symbol>> TextFile::getSymbols()

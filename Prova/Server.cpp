@@ -14,14 +14,14 @@ Server::~Server() {
 void Server::onDisconnected()
 {
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
-	QString filename = connections.find(socket).value()->getFilename();
-	if (filename.compare("") != 0) { //se c'� un file associato a quella connessione
-		TextFile* f = files.find(filename).value();
+	QString filePath = connections.find(socket).value()->getFilename();
+	if (filePath.compare("") != 0) { //se c'� un file associato a quella connessione
+		TextFile* f = files.find(filePath).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
 			saveFile(f);
 		}
 		f->removeConnection(socket);//rimozione utente dai connessi al file
-		std::cout << "UTENTI CONNESSI A " << filename.toStdString() << ":\t" << f->getConnections().size() << std::endl;
+		std::cout << "UTENTI CONNESSI A " << filePath.toStdString() << ":\t" << f->getConnections().size() << std::endl;
 		sendClient(connections.find(socket).value()->getNickname(), socket, false);
 	}
 	connections.remove(socket);
@@ -314,6 +314,55 @@ void Server::onReadyRead()
 
 			break;
 		}
+		case 9: {
+			/*
+			   Eliminazione File;
+			
+			*/
+
+
+			QString filename;
+			QString creatore;
+			QByteArray buf;
+			QDataStream out(&buf, QIODevice::WriteOnly);
+
+			in >> filename >> creatore;
+
+			QString filePath = creatore + "/" + filename;
+			
+			/*
+			* controlla se esiste il file;
+			*/
+			
+			if (QFile::exists(filePath)) {
+				/*
+				* controlla se chi richiede la cancellazione del file è il creatore
+				*/
+				if (connections.find(sender).value()->getUsername() == files[filePath]->getCreatore()) {
+					
+					//cancella il file
+					deleteFile(filePath);
+				}
+				else {
+					/*
+					* ERRORE 1:
+					* Solo il creatore può cancellare il file  
+					*/
+					out << 9 << 1;
+				}
+			}
+			else {
+
+				/*
+				* Errore 2:
+				* Il file non esiste
+				*/
+				out << 9 << 2; //file non esiste
+			}
+		
+			sender->write(buf);
+			break;
+		}
 		default:
 			break;
 		}
@@ -365,7 +414,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 	else {
 		//creo un nuovo file
 		if (connections.contains(socket)) {
-			TextFile* tf = new TextFile(filename, filePath, socket);
+			TextFile* tf = new TextFile(filename, filePath, connections.find(socket).value()->getUsername(), socket);
 			if (files.contains(filePath)) {
 				flag = true;
 				out << 4 << 2; //Errore generico da gestire
@@ -381,7 +430,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket) {
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
 	if (connections.contains(socket) && !flag) {
 		files.find(filePath).value()->addConnection(socket);
-		connections.find(socket).value()->setFilename(filePath);
+		connections.find(socket).value()->setFilename(filePath); // Questo è il file path, funziona ma sarebbe meglio cambiare il nome del metodo
 	}
 }
 
@@ -675,7 +724,7 @@ void Server::load_files()
 
 			fileOwnersMap.insert(filePath, utenti);
 			QString filename = filePath.split("/")[1];
-			TextFile* f = new TextFile(filename, filePath);
+			TextFile* f = new TextFile(filename, filePath, words[1]);
 			load_file(f);
 			files.insert(filePath, f);
 		}
@@ -703,7 +752,7 @@ void Server::load_files()
 void Server::load_file(TextFile* f)
 {
 	QString filePath = f->getFilePath();
-	QString username = fileOwnersMap[filePath].first();
+	QString username = f->getCreatore();
 	QDir d = QDir::current();
 
 	if (!d.exists(username)) {
@@ -941,23 +990,19 @@ void Server::saveAllFilesStatus() {
 
 void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert) {
 
-	QString filename = filePath.split("/")[1];
+	
 	QString userFolder = filePath.split("/")[0];
 
-	QString fileLogName = filename + "_log.txt";
+	QString fileLogName = filePath.remove(filePath.remove(filePath.size()-4 , 4)) + "_log.txt";
 
 	QDir d = QDir::current();
 
 	if (!d.exists(userFolder)) {
 		qWarning() << "Impossibile trovare una cartella associata all'utente!" << "\n" << "Creazione cartella";
-		/*
-				TODO
-				crea cartello o mando messaggio di errore?
-
-		*/
+		d.mkdir(userFolder);
 	}
 
-	QFile file(d.filePath(filePath));
+	QFile file(d.filePath(fileLogName));
 
 	if (file.open(QIODevice::WriteOnly | QIODevice::Append))
 	{
@@ -1004,9 +1049,16 @@ bool Server::readFromLog(TextFile* f) {
 	   selezionare la cartella corrente
 
 	*/
+	QDir dir = QDir::current();
+	
 
-	QString fileLogName = f->getFilename() + "_log.txt";
-	QFile fin(fileLogName);
+	if (!dir.exists(f->getCreatore())) {
+		qDebug() << "Errore! Non è stato possibile trovare il file. \n Creazione della cartella...";
+		dir.mkdir(f->getCreatore());
+	}
+	QString filePath = f->getFilePath();
+	QString fileLogPath = filePath.remove(filePath.size()-4, 4) + "_log.txt";
+	QFile fin(dir.filePath(fileLogPath));
 	if (fin.open(QIODevice::ReadOnly)) {
 		QTextStream in(&fin);
 		while (!in.atEnd())
@@ -1046,8 +1098,21 @@ bool Server::readFromLog(TextFile* f) {
 	}
 }
 void Server::deleteLog(TextFile* f) {
-	QString fileLogName = f->getFilename() + "_log.txt";
-	remove(fileLogName.toStdString().c_str());
+	QString filePath = f->getFilePath();
+	QString fileLogPath = filePath.remove(filePath.size() - 4, 4) + "_log.txt";
+	remove(fileLogPath.toStdString().c_str());
+}
+
+void Server::deleteFile(QString filePath)
+{
+	for(QString username : fileOwnersMap[filePath]) {
+		filesForUser[username].removeOne(filePath);
+	}
+	fileOwnersMap.remove(filePath);
+	files.remove(filePath);
+	fileUri.remove(filePath);
+	saveAllFilesStatus();
+	remove(filePath.toStdString().c_str());
 }
 
 

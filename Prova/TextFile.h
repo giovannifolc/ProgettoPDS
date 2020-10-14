@@ -7,11 +7,12 @@
 class TextFile
 {
 public:
-	TextFile(QString filename, QString filePath);
-	TextFile(QString filename, QString filePath, QTcpSocket* connection);
+	TextFile(QString filename, QString filePath, QString creatore);
+	TextFile(QString filename, QString filePath, QString creatore, QTcpSocket* connection);
 	~TextFile();
 	QString getFilename();
 	QString getFilePath();
+	QString getCreatore();
 	QVector<std::shared_ptr<Symbol>> getSymbols();
 	void addSymbol(std::shared_ptr<Symbol> symbol);
 	int removeSymbol(std::shared_ptr<Symbol> symbol);
@@ -24,6 +25,7 @@ public:
 private:
 	QString filename;
 	QString filePath;
+	QString creatore;
 	QVector<std::shared_ptr<Symbol>> symbols;
 	QVector<QTcpSocket*> connections;
 };
