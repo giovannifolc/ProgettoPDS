@@ -341,7 +341,7 @@ void Server::onReadyRead()
 				if (connections.find(sender).value()->getUsername() == files[filePath]->getCreatore()) {
 					
 					//cancella il file
-					deleteFile(filePath);
+					deleteFile(filePath,sender);
 				}
 				else {
 					/*
@@ -912,6 +912,18 @@ void Server::rewriteUsersFile() {
 	file.close();
 }
 
+void Server::rewriteURIFile()
+{
+	QFile file("file_uri.txt");
+	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+		QTextStream output(&file);
+		for (QString key : fileUri.keys()) {
+			output <<  key  << fileUri[key] << "\n";
+		}
+	}
+	file.close();
+}
+
 void Server::addNewFile(QString filePath, QString user) {
 	QFile file("all_files.txt");
 
@@ -1103,8 +1115,11 @@ void Server::deleteLog(TextFile* f) {
 	remove(fileLogPath.toStdString().c_str());
 }
 
-void Server::deleteFile(QString filePath)
+void Server::deleteFile(QString filePath, QTcpSocket * socket)
 {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+
 	for(QString username : fileOwnersMap[filePath]) {
 		filesForUser[username].removeOne(filePath);
 	}
@@ -1112,7 +1127,12 @@ void Server::deleteFile(QString filePath)
 	files.remove(filePath);
 	fileUri.remove(filePath);
 	saveAllFilesStatus();
+	rewriteURIFile();
 	remove(filePath.toStdString().c_str());
+    
+	out << 9 << 0;
+
+	socket->write(buf);
 }
 
 

@@ -64,6 +64,7 @@ private:
 	void addNewUserToFile(User* user);
 	void addNewFile(QString filename, QString user);
 	void rewriteUsersFile();
+	void rewriteURIFile();
 	bool isAuthenticated(QTcpSocket* socket);
 	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
@@ -71,7 +72,7 @@ private:
 	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
-	void deleteFile(QString filePath);
+	void deleteFile(QString filePath, QTcpSocket* socket);
 
 	QString genRandom();
 
