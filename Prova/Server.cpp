@@ -107,7 +107,7 @@ void Server::onReadyRead()
 		in >> operation;
 		switch (operation)
 		{
-
+			
 		case 0:
 		{	//caso per il login
 			QString username, password;
@@ -238,6 +238,13 @@ void Server::onReadyRead()
 				*/
 			}
 
+			break;
+		}
+		case 11:
+		{
+			int index;
+			in >> index;
+			cursorPositionChanged(index, (*myClient)->getFilename(), sender);
 			break;
 		}
 		default:
@@ -887,4 +894,26 @@ QString Server::genRandom() { // Random string generator function.
 	}
 
 	return s;
+}
+
+
+/*La posizione del cursore del sender è cambiata, quindi bisogna avvisare tutti gli
+* altri client che stanno utilizzando a quel file (recivers)*/
+void Server::cursorPositionChanged(int index, QString filename, QTcpSocket* sender) {
+	if (!isAuthenticated(sender)) {
+		return;
+	}
+	TextFile* tf = files.find(filename).value();
+	int siteIdSender = connections.find(sender).value()->getSiteId();
+	
+	for (auto reciver : tf->getConnections()) {
+		if (reciver != sender) {
+			QByteArray buf;
+			QDataStream out(&buf, QIODevice::WriteOnly);
+			out << 11 << filename << index << siteIdSender;
+			reciver->write(buf);
+			reciver->flush();
+		}
+	}
+	return;
 }
