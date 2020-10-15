@@ -15,6 +15,7 @@ void Server::onDisconnected()
 {
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = connections.find(socket).value()->getFilename();
+	qDebug() << filename;
 	if (filename.compare("") != 0) { //se c'� un file associato a quella connessione
 		TextFile* f = files.find(filename).value();
 		if (f->getConnections().size() == 1) { //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
@@ -213,9 +214,9 @@ void Server::onReadyRead()
 				symbolsToSend.push_back(newSym);
 			}
 			//mando in out
-			for (auto client : connections) {
-				if (client->getFilename() == filename && client->getSocket() != sender) {
-					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filePath); //false per dire che � una cancellazione
+			for (QTcpSocket* sock : connections.keys()) {
+				if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender) {
+					sendSymbols(n_sym, symbolsToSend, insert == 1, sock, filePath); //false per dire che � una cancellazione
 				}
 			}
 			break;
@@ -313,6 +314,14 @@ void Server::onReadyRead()
 			}
 
 			break;
+		}
+		case 9: {
+			// Eliminare un file
+			QString filename;
+			QString username;		
+			in >> filename >> username;
+			
+			eraseFile(filename, username, sender);
 		}
 		default:
 			break;
@@ -807,7 +816,72 @@ void Server::requestURI(QString filePath, QTcpSocket* sender) {
 
 }
 
+void Server::eraseFile(QString filename, QString username, QTcpSocket* sender) {
+	
 
+	/// files -> bio/ciao.txt - utenti connessi
+	/// connections -> utenti - file a cui sono connessi
+	
+	QString filePath = username + "/" + filename;
+	
+	QVector<QString> fileUsers;
+
+	// Elimino il file da fileOwnersMap e da all_file.txt
+	if (fileOwnersMap.contains(filePath)) {
+		if (fileOwnersMap[filePath][0] == username) {
+			// salvo in fileUsers tutti gli utenti che possono modificare il file
+			fileUsers = fileOwnersMap[filePath];
+			fileOwnersMap.remove(filePath);
+			saveAllFilesStatus();
+		}
+		else {
+			QByteArray buf;
+			QDataStream out(&buf, QIODevice::WriteOnly);
+			out << 9 << 2; // Errore, non è il creatore
+			sender->write(buf);
+			return;
+		}
+	}
+	else {
+		QByteArray buf;
+		QDataStream out(&buf, QIODevice::WriteOnly);
+		out << 9 << 2; // Errore, file inesistente
+		sender->write(buf);
+		return;
+	}
+
+	// Elimino il file da fileForUsers
+	for (QString user : fileUsers) {
+		if (filesForUser.keys().contains(user)) {
+			if (filesForUser[user].removeOne(filePath)) {}
+		}
+	}
+
+	// Elimino il file da fileUri e file_uri.txt
+	if (fileUri.contains(filePath)) {
+		fileUri.remove(filePath);
+		saveURIFileStatus();
+	}
+
+	// Faccio eliminare il file a tutti i client connessi che possono vederlo. Questo eliminerà il file da connections
+	for (QTcpSocket* sock : connections.keys()) {
+		if (fileUsers.contains(connections[sock]->getUsername())) {
+			qDebug() << "ciao";
+			QByteArray buf;
+			QDataStream out(&buf, QIODevice::WriteOnly);
+			out << 9 << 1 << filename << username; // Gli dico di cancellare il file
+			sock->write(buf);
+		}
+	}
+
+	// Elimino il file da files
+	files.remove(filePath);
+	
+
+	/// RIMUOVERE IL FILE DALLA CARTELLA
+	QFile f(filePath);
+	f.remove();
+}
 
 Server::Server(QObject* parent) : QObject(parent)
 {
@@ -928,12 +1002,22 @@ void Server::saveAllFilesStatus() {
 				output << " " << utente;
 
 			}
-
 			output << "\n";
-
 		}
+	}
 
+	file.close();
+}
 
+void Server::saveURIFileStatus() {
+	
+	QFile file("file_uri.txt");
+	if (file.open(QIODevice::WriteOnly)) {
+
+		QTextStream output(&file);
+		for (QString filePath : fileUri.keys()) {
+			output << filePath << " " << fileUri[filePath] << "\n";
+		}
 	}
 
 	file.close();

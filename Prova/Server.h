@@ -62,13 +62,15 @@ private:
 	void load_files();
 	void load_file(TextFile* f);
 	void addNewUserToFile(User* user);
-	void addNewFile(QString filename, QString user);
+	void addNewFile(QString filePath, QString user);
 	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
 	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
-	void requestURI(QString filename, QTcpSocket* sender);
-	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
+	void saveURIFileStatus(); // salva il file file_uri.txt
+	void requestURI(QString filePath, QTcpSocket* sender);
+	void eraseFile(QString filename, QString username, QTcpSocket* sender);
+	void writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
 
