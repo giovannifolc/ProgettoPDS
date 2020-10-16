@@ -100,161 +100,164 @@ void Server::onReadyRead()
 	QTcpSocket* sender = static_cast<QTcpSocket*>(QObject::sender());
 	auto myClient = connections.find(sender);
 	//se esiste nel nostro elenco di client connessi riceviamo, altrimenti no
-	if (myClient != connections.end()) {
-		QDataStream in;
-		in.setDevice(myClient.key());
-		int operation;
-		in >> operation;
-		switch (operation)
-		{
-			
-		case 0:
-		{	//caso per il login
-			QString username, password;
-			in >> username >> password;
-			bool success = login(username, password, sender);
-			//se ho successo ritorno l'elenco di file, altrimenti un messaggio di fail
-			/*if(success)
-				sendFiles(sender);*/
-			break;
+	while (sender->bytesAvailable() != 0) {
+		if (myClient != connections.end()) {
+			QDataStream in;
+			in.setDevice(myClient.key());
+			int operation;
+			in >> operation;
+			switch (operation)
+			{
 
-		}
-		case 1: {
-			//caso per la registrazione
-			QString username, password, nickname;
-			in >> username >> password >> nickname;
-			registration(username, password, nickname, sender);
-			break;
-		}
-		case 2:
-		{
-			//caso per la modifica credenziali
-			QString username, old_password, new_password, nickname;
-			in >> username >> old_password >> new_password >> nickname;
-			//check su identit�
-			changeCredentials(username, old_password, new_password, nickname, sender);
-			break;
-		}
-		case 3:
-		{
-			//caso per l'inserimento o rimozione di un simbolo
-			int insert;
-			QString filename;/*
-			in >> insert >> filename;
-			if (insert == 1) {
-				insertSymbol(filename, sender, &in);
+			case 0:
+			{	//caso per il login
+				QString username, password;
+				in >> username >> password;
+				bool success = login(username, password, sender);
+				//se ho successo ritorno l'elenco di file, altrimenti un messaggio di fail
+				/*if(success)
+					sendFiles(sender);*/
+				break;
+
 			}
-			else {
-				int siteId, counter;
-				QVector<int> pos;
-				in >> siteId >> counter >> pos;
-				deleteSymbol(filename, siteId, counter, pos, sender);
-			}*/
-			int n_sym;
-			in >> insert >> filename >> n_sym;
-			QVector<std::shared_ptr<Symbol>> symbolsToSend;
-			for (int i = 0; i < n_sym; i++) {
-				int siteId, counter;
-				QVector<int> pos;
-				in >> siteId >> counter >> pos;
-				std::shared_ptr<Symbol> newSym;
+			case 1: {
+				//caso per la registrazione
+				QString username, password, nickname;
+				in >> username >> password >> nickname;
+				registration(username, password, nickname, sender);
+				break;
+			}
+			case 2:
+			{
+				//caso per la modifica credenziali
+				QString username, old_password, new_password, nickname;
+				in >> username >> old_password >> new_password >> nickname;
+				//check su identit�
+				changeCredentials(username, old_password, new_password, nickname, sender);
+				break;
+			}
+			case 3:
+			{
+				//caso per l'inserimento o rimozione di un simbolo
+				int insert;
+				QString filename;/*
+				in >> insert >> filename;
 				if (insert == 1) {
-					insertSymbol(filename, sender, &in, siteId, counter, pos);
-					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					insertSymbol(filename, sender, &in);
 				}
 				else {
-					newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					int siteId, counter;
+					QVector<int> pos;
+					in >> siteId >> counter >> pos;
 					deleteSymbol(filename, siteId, counter, pos, sender);
+				}*/
+				int n_sym;
+				in >> insert >> filename >> n_sym;
+				QVector<std::shared_ptr<Symbol>> symbolsToSend;
+				for (int i = 0; i < n_sym; i++) {
+					int siteId, counter;
+					QVector<int> pos;
+					in >> siteId >> counter >> pos;
+					std::shared_ptr<Symbol> newSym;
+					if (insert == 1) {
+						insertSymbol(filename, sender, &in, siteId, counter, pos);
+						newSym = files.find(filename).value()->getSymbol(siteId, counter);
+					}
+					else {
+						newSym = files.find(filename).value()->getSymbol(siteId, counter);
+						deleteSymbol(filename, siteId, counter, pos, sender);
+					}
+					symbolsToSend.push_back(newSym);
 				}
-				symbolsToSend.push_back(newSym);
-			}
-			//mando in out
-			for (auto client : connections) {
-				if (client->getFilename() == filename && client->getSocket() != sender) {
-					sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filename); //false per dire che � una cancellazione
+				//mando in out
+				for (auto client : connections) {
+					if (client->getFilename() == filename && client->getSocket() != sender) {
+						sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filename); //false per dire che � una cancellazione
+					}
 				}
+				break;
+				//voglio rispondere con qualcosa? TODO
 			}
-			break;
-			//voglio rispondere con qualcosa? TODO
-		}
-		case 4:
-		{	//richiesta di un file da parte di un client
-			QString filename;
-			in >> filename;
-			sendFile(filename, sender);
-			break;
-		}
-		case 5:
-		{
-			//segnalazione di disconnessione da un file
-			QString filename;
-			in >> filename;
-			connections.find(sender).value()->setFilename("");
-
-			files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
-			for (auto conn : files.find(filename).value()->getConnections()) {
-				sendClient(connections.find(sender).value()->getSiteId(), connections.find(sender).value()->getNickname(), conn, false);
+			case 4:
+			{	//richiesta di un file da parte di un client
+				QString filename;
+				in >> filename;
+				sendFile(filename, sender);
+				break;
 			}
-			saveIfLast(filename);
-			break;
-		}
-		case 6:
-		{
-			sendFiles(sender);
-			break;
-		}
-		case 7: {
-			/*
-			   Implemento la share ownership
-			*/
-			QString filename;
-			QString username;
-			int operation;
+			case 5:
+			{
+				//segnalazione di disconnessione da un file
+				QString filename;
+				in >> filename;
+				connections.find(sender).value()->setFilename("");
 
-			in >> operation >> filename;
-
-
-			/*
-
-			   Manca il controllo sull'utente che mi chiede la share ownership, deve essere un utente abilitato ad accedere del file
-
-			*/
-
-			if (operation == 1) {
+				files.find(filename).value()->removeConnection(sender);//rimozione utente dai connessi al file
+				for (auto conn : files.find(filename).value()->getConnections()) {
+					sendClient(connections.find(sender).value()->getSiteId(), connections.find(sender).value()->getNickname(), conn, false);
+				}
+				saveIfLast(filename);
+				break;
+			}
+			case 6:
+			{
+				sendFiles(sender);
+				break;
+			}
+			case 7: {
 				/*
-				manca la URI
+				   Implemento la share ownership
+				*/
+				QString filename;
+				QString username;
+				int operation;
+
+				in >> operation >> filename;
+
+
+				/*
+
+				   Manca il controllo sull'utente che mi chiede la share ownership, deve essere un utente abilitato ad accedere del file
 
 				*/
-				shareOwnership(filename, sender);
-			}
-			else if (operation == 2) {
 
-				requestURI(filename, sender);
-			}
-			else {
-				/*
-				  ERRORE
+				if (operation == 1) {
+					/*
+					manca la URI
 
-				*/
-			}
+					*/
+					shareOwnership(filename, sender);
+				}
+				else if (operation == 2) {
 
-			break;
+					requestURI(filename, sender);
+				}
+				else {
+					/*
+					  ERRORE
+
+					*/
+				}
+
+				break;
+			}
+			case 11:
+			{
+				int index;
+				in >> index;
+				cursorPositionChanged(index, (*myClient)->getFilename(), sender);
+				break;
+			}
+			default:
+				break;
+			}
 		}
-		case 11:
-		{
-			int index;
-			in >> index;
-			cursorPositionChanged(index, (*myClient)->getFilename(), sender);
-			break;
+		else {
+			//visualizzare errore e chiudere connessione?
 		}
-		default:
-			break;
-		}
+		sender->flush();
+		
 	}
-	else {
-		//visualizzare errore e chiudere connessione?
-	}
-	sender->flush();
 }
 
 void Server::saveIfLast(QString filename) {
@@ -389,6 +392,7 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
 	}
 	socket->write(buf);
+	socket->flush();
 }
 
 
