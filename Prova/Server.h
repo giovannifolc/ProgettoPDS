@@ -38,7 +38,7 @@ private slots:
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
 	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename);
 	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket);
-	void sendFile(QString filename, QTcpSocket* socket, int siteId);
+	void sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId);
 	void sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
@@ -62,13 +62,15 @@ private:
 	void load_files();
 	void load_file(TextFile* f);
 	void addNewUserToFile(User* user);
-	void addNewFile(QString filename, QString user);
+	void addNewFile(QString filePath, QString user);
 	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
-	void shareOwnership(QString filename, QTcpSocket* socket);
+	void shareOwnership(QString uri, QTcpSocket* socket);
 	void saveAllFilesStatus(); // salva il file All_files.txt
-	void requestURI(QString filename, QTcpSocket* sender);
-	void writeLog(QString filename, std::shared_ptr<Symbol> s, bool insert);
+	void saveURIFileStatus(); // salva il file file_uri.txt
+	void requestURI(QString filePath, QTcpSocket* sender);
+	void eraseFile(QString filename, QString username, QTcpSocket* sender);
+	void writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
 
