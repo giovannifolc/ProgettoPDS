@@ -389,6 +389,7 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
 	}
 	socket->write(buf);
+	socket->flush();
 }
 
 
