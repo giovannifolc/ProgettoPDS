@@ -73,6 +73,7 @@ private:
 	void writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
+	void cursorPositionChanged(int index, QString filename, QTcpSocket* sender);
 
 	QString genRandom();
 
