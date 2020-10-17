@@ -139,6 +139,8 @@ void Server::onReadyRead()
 			case 3:
 			{
 				//caso per l'inserimento o rimozione di un simbolo
+
+				qDebug() <<"Bytes" << sender->bytesAvailable();
 				int insert;
 				QString filename;/*
 				in >> insert >> filename;
