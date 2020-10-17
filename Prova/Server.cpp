@@ -180,8 +180,9 @@ void Server::onReadyRead()
 		case 4:
 		{	//richiesta di un file da parte di un client
 			QString filename;
-			in >> filename;
-			sendFile(filename, sender);
+			int siteIdTmp;
+			in >> filename >> siteIdTmp;
+			sendFile(filename, sender, siteIdTmp);
 			break;
 		}
 		case 5:
@@ -264,7 +265,7 @@ void Server::saveIfLast(QString filename) {
 	}
 }
 
-void Server::sendFile(QString filename, QTcpSocket* socket) {
+void Server::sendFile(QString filename, QTcpSocket* socket, int siteId) {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	QByteArray buf2;
@@ -274,12 +275,11 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 
 		TextFile* tf = files.find(filename).value();
 
-		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando in numero di simboli in arrivo
-
+		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando il numero di simboli in arrivo
 		socket->write(buf);
 		
 		for (auto s : tf->getSymbols()) {
-			sendSymbol(s, true, socket);  //POTREMMO OTTIMIZZARE con una scrittura di un blocco di simboli e non mandandoli uno alla volta
+			sendSymbol(s, true, socket);
 		}
 		int size = tf->getConnections().size();
 		out2 << size;// tf->getConnections().size(); //mando la quantità di client già connessi
@@ -288,6 +288,13 @@ void Server::sendFile(QString filename, QTcpSocket* socket) {
 			out2 << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
 		}
 		
+		QVector<QString> vect = fileOwnersMap.find(filename).value();
+
+		out2 << vect.size(); //-1 perché elimino me stesso da questo conteggio
+
+		for (QString username : vect) {
+			out2 << subs.find(username).value()->getSiteId() << subs.find(username).value()->getNickname();
+		}
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections()) {
 			sendClient(connections.find(socket).value()->getSiteId(), connections.find(socket).value()->getNickname(), conn, true);
