@@ -358,79 +358,78 @@ void Server::onReadyRead()
 			sender->flush();
 		}
 	}
-
-	void Server::saveIfLast(QString filename)
+	}
+void Server::saveIfLast(QString filename)
+{
+	bool salva = true;
+	for (auto client : connections)
 	{
-		bool salva = true;
-		for (auto client : connections)
+		if (client->getFilename() == filename)
 		{
-			if (client->getFilename() == filename)
-			{
-				salva = false;
-			}
-		}
-		if (salva)
-		{
-			if (files.find(filename) != files.end())
-			{
-				saveFile(files.find(filename).value());
-			}
+			salva = false;
 		}
 	}
-
-	void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, int siteId)
+	if (salva)
 	{
-		QByteArray buf;
-		QDataStream out(&buf, QIODevice::WriteOnly);
-		QByteArray buf2;
-		QDataStream out2(&buf2, QIODevice::WriteOnly);
-
-		bool flag = false;
-
-		if (files.contains(filePath))
+		if (files.find(filename) != files.end())
 		{
-
-			TextFile *tf = files.find(filePath).value();
-
-			out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando il numero di simboli in arrivo
-			socket->write(buf);
-
-			for (auto s : tf->getSymbols())
-			{
-				sendSymbol(s, true, socket);
-			}
-			int size = tf->getConnections().size();
-			out2 << size; // tf->getConnections().size(); //mando la quantità di client già connessi
-
-			for (auto conn : tf->getConnections())
-			{
-				out2 << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
-			}
-
-			QVector<QString> vect = fileOwnersMap.find(filename).value();
-
-			out2 << vect.size(); //-1 perché elimino me stesso da questo conteggio
-
-			for (QString username : vect)
-			{
-				out2 << subs.find(username).value()->getSiteId() << subs.find(username).value()->getNickname();
-			}
-			//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
-			for (auto conn : tf->getConnections())
-			{
-				sendClient(connections.find(socket).value()->getSiteId(), connections.find(socket).value()->getNickname(), conn, true);
-			}
+			saveFile(files.find(filename).value());
 		}
-		else
+	}
+}
+
+void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, int siteId)
+{
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	QByteArray buf2;
+	QDataStream out2(&buf2, QIODevice::WriteOnly);
+
+	bool flag = false;
+
+	if (files.contains(filePath))
+	{
+
+		TextFile *tf = files.find(filePath).value();
+
+		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando il numero di simboli in arrivo
+		socket->write(buf);
+
+		for (auto s : tf->getSymbols())
 		{
-			//creo un nuovo file
-			if (connections.contains(socket))
-			{
-				TextFile *tf = new TextFile(filename, filePath, socket);
-				files.insert(filePath, tf);
-				//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
-				addNewFile(filePath, connections.find(socket).value()->getUsername());
-			}
+			sendSymbol(s, true, socket);
+		}
+		int size = tf->getConnections().size();
+		out2 << size; // tf->getConnections().size(); //mando la quantità di client già connessi
+
+		for (auto conn : tf->getConnections())
+		{
+			out2 << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
+		}
+
+		QVector<QString> vect = fileOwnersMap.find(filename).value();
+
+		out2 << vect.size(); //-1 perché elimino me stesso da questo conteggio
+
+		for (QString username : vect)
+		{
+			out2 << subs.find(username).value()->getSiteId() << subs.find(username).value()->getNickname();
+		}
+		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
+		for (auto conn : tf->getConnections())
+		{
+			sendClient(connections.find(socket).value()->getSiteId(), connections.find(socket).value()->getNickname(), conn, true);
+		}
+	}
+	else
+	{
+		//creo un nuovo file
+		if (connections.contains(socket))
+		{
+			TextFile *tf = new TextFile(filename, filePath, socket);
+			files.insert(filePath, tf);
+			//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
+			addNewFile(filePath, connections.find(socket).value()->getUsername());
 		}
 	}
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
