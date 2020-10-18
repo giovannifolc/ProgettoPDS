@@ -388,7 +388,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, i
 			out2 << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
 		}
 
-		QVector<QString> vect = fileOwnersMap.find(filename).value();
+		QVector<QString> vect = fileOwnersMap.find(filePath).value();
 
 		out2 << vect.size(); //-1 perché elimino me stesso da questo conteggio
 
