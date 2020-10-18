@@ -197,27 +197,8 @@ void Server::onReadyRead()
 						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
 						deleteSymbol(filePath, siteId, counter, pos, sender);
 					}
-				}
-				//caso per l'inserimento o rimozione di un simbolo
-				int n_sym;
-				in >> insert >> filename >> n_sym;
-				QVector<std::shared_ptr<Symbol>> symbolsToSend;
-				for (int i = 0; i < n_sym; i++)
-				{
-					int siteId, counter;
-					QVector<int> pos;
-					in >> siteId >> counter >> pos;
-					std::shared_ptr<Symbol> newSym;
-					if (insert == 1)
-					{
-						insertSymbol(filePath, sender, &in, siteId, counter, pos);
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-					}
-					else
-					{
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-						deleteSymbol(filePath, siteId, counter, pos, sender);
-					}
+				
+			
 					symbolsToSend.push_back(newSym);
 				}
 				//mando in out
@@ -862,15 +843,14 @@ void Server::shareOwnership(QString uri, QTcpSocket *sender)
 	UserConn *tmp = connections.find(sender).value();
 
 	bool flag = false;
-	for
-		each(QString filename in fileUri.keys())
+	for (QString filePath : fileUri.keys())
 		{
-			if (fileUri[filename] == uri)
+			if (fileUri[filePath] == uri)
 			{
-				fileOwnersMap[filename].append(tmp->getUsername());
-				filesForUser[tmp->getUsername()].append(filename);
+				fileOwnersMap[filePath].append(tmp->getUsername());
+				filesForUser[tmp->getUsername()].append(filePath);
 				saveAllFilesStatus();
-				out << 7 << 1 << files[filename]->getFilename() << subs[fileOwnersMap[filename].first()]->getUsername() << subs[fileOwnersMap[filename].first()]->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+				out << 7 << 1 << files[filePath]->getFilename() << subs[fileOwnersMap[filePath].first()]->getUsername() << subs[fileOwnersMap[filePath].first()]->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
 				flag = true;
 				break;
 			}
