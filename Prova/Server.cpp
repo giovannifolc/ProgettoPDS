@@ -486,8 +486,8 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
-	//controlli
-	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end())
+	//controlli                       in questo controllo si sta guardando se chi sta rimuovendo il simbolo è lo stesso che lo elimina: non serve.
+	if (tmp != connections.end() && /*tmp.value()->getSiteId() == siteId &&*/ tmp.value()->getFilename() == filename && tmpFile != files.end())
 	{
 		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
 		tmpFile.value()->removeSymbol(sym);
