@@ -9,12 +9,12 @@ Server::~Server()
 
 void Server::onDisconnected()
 {
-	QTcpSocket *socket = static_cast<QTcpSocket *>(QObject::sender());
+	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = connections.find(socket).value()->getFilename();
 	qDebug() << filename;
 	if (filename.compare("") != 0)
 	{ //se c'� un file associato a quella connessione
-		TextFile *f = files.find(filename).value();
+		TextFile* f = files.find(filename).value();
 		if (f->getConnections().size() == 1)
 		{ //se ultimo connesso posso togliere dalla memoria il file e salvarlo in un file di testo
 			saveFile(f);
@@ -27,7 +27,7 @@ void Server::onDisconnected()
 	std::cout << "UTENTI CONNESSI:\t" << connections.size() << std::endl;
 }
 
-void Server::saveFile(TextFile *f)
+void Server::saveFile(TextFile* f)
 {
 
 	QString filePath = f->getFilePath();
@@ -49,37 +49,8 @@ void Server::saveFile(TextFile *f)
 		stream << size << endl;
 		for (auto s : files.find(filePath).value()->getSymbols())
 		{
-			/*if (symbol->isStyle()) {
-				stream << 1;
-				std::shared_ptr<StyleSymbol> ss = std::dynamic_pointer_cast<StyleSymbol>(symbol);
-				stream << ss->isStyle() << pos++ << ss->getCounter() << ss->getSiteId();
-				if (ss->isBold()) {
-					stream << 1;
-				}else {
-					stream << 0;
-				}
-				if(ss->isItalic()){
-					stream << 1;
-				}
-				else {
-					stream << 0;
-				}
-				if (ss->isUnderlined()) {
-					stream << 1;
-				}
-				else {
-					stream << 0;
-				}
-				stream << ss->getAlignment() << ss->getTextSize() << ss->getColor().name() << ss->getFont() << endl;
-			}
-			else {
-				std::shared_ptr<TextSymbol> ts = std::dynamic_pointer_cast<TextSymbol>(symbol);
-				stream << 0; //non � stile
-				stream << " " << pos++ << " " << ts->getCounter() << " " << ts->getSiteId() << " " << ts->getValue() << endl;
-			}*/
-			//stream << 1;
 			qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " << s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
-					 << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
+				<< " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
 
 			stream << pos++ << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
 			if (s->isBold())
@@ -115,7 +86,7 @@ void Server::saveFile(TextFile *f)
 
 void Server::onReadyRead()
 {
-	QTcpSocket *sender = static_cast<QTcpSocket *>(QObject::sender());
+	QTcpSocket* sender = static_cast<QTcpSocket*>(QObject::sender());
 	auto myClient = connections.find(sender);
 	//se esiste nel nostro elenco di client connessi riceviamo, altrimenti no
 	while (sender->bytesAvailable() != 0)
@@ -171,6 +142,9 @@ void Server::onReadyRead()
 			}
 			case 3:
 			{
+
+				qDebug() << "Inizio blocco: " << sender->bytesAvailable() << " byte da scrivere";
+
 				int insert;
 				QString filename;
 				QString creatore;
@@ -197,24 +171,23 @@ void Server::onReadyRead()
 						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
 						deleteSymbol(filePath, siteId, counter, pos, sender);
 					}
-				
-			
+
+
 					symbolsToSend.push_back(newSym);
 				}
+
 				//mando in out
-				/*for (auto client : connections) {
-					if (client->getFilename() == filePath && client->getSocket() != sender) {
-						sendSymbols(n_sym, symbolsToSend, insert == 1, client->getSocket(), filePath); //false per dire che � una cancellazione
-					}
-				}*/
-				//mando in out
-				for (QTcpSocket *sock : connections.keys())
+				for (QTcpSocket* sock : connections.keys())
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
 					{
 						sendSymbols(n_sym, symbolsToSend, insert == 1, sock, filePath); //false per dire che � una cancellazione
 					}
 				}
+
+
+				qDebug() << "Fine Blocco!";
+
 				break;
 			}
 			case 4:
@@ -339,7 +312,7 @@ void Server::onReadyRead()
 			sender->flush();
 		}
 	}
-	}
+}
 void Server::saveIfLast(QString filename)
 {
 	bool salva = true;
@@ -359,7 +332,7 @@ void Server::saveIfLast(QString filename)
 	}
 }
 
-void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, int siteId)
+void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -371,7 +344,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, i
 	if (files.contains(filePath))
 	{
 
-		TextFile *tf = files.find(filePath).value();
+		TextFile* tf = files.find(filePath).value();
 
 		out << 4 /*# operazione*/ << tf->getSymbols().size(); //mando il numero di simboli in arrivo
 		socket->write(buf);
@@ -407,7 +380,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, i
 		//creo un nuovo file
 		if (connections.contains(socket))
 		{
-			TextFile *tf = new TextFile(filename, filePath, socket);
+			TextFile* tf = new TextFile(filename, filePath, socket);
 			files.insert(filePath, tf);
 			//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
 			addNewFile(filePath, connections.find(socket).value()->getUsername());
@@ -422,7 +395,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket * socket, i
 	socket->write(buf2);
 }
 
-void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket *socket)
+void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket* socket)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -445,7 +418,7 @@ void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpS
 	socket->write(buf);
 }
 
-void Server::sendClient(int siteId, QString nickname, QTcpSocket *socket, bool insert)
+void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -463,7 +436,7 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket *socket, bool i
 	//socket->flush();
 }
 
-void Server::insertSymbol(QString filename, QTcpSocket *sender, QDataStream *in, int siteId, int counter, QVector<int> pos)
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
@@ -483,7 +456,7 @@ void Server::insertSymbol(QString filename, QTcpSocket *sender, QDataStream *in,
 	}
 }
 
-void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket *socket, QString filename)
+void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -509,7 +482,7 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	socket->flush();
 }
 
-void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket *sender)
+void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
@@ -522,12 +495,12 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 	}
 }
 
-void Server::changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket *receiver)
+void Server::changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int flag = 1;
-	UserConn *tmp = connections.find(receiver).value();
+	UserConn* tmp = connections.find(receiver).value();
 	if (tmp->getUsername() == username)
 	{
 		if (old_password == tmp->getPassword())
@@ -557,21 +530,21 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	//receiver->flush();
 }
 
-void Server::registration(QString username, QString password, QString nickname, QTcpSocket *sender)
+void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender)
 {
 	QDir d;
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	if (!subs.contains(username))
 	{
-		User *user = new User(username, password, nickname, siteIdCounter++);
-		UserConn *conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
+		User* user = new User(username, password, nickname, siteIdCounter++);
+		UserConn* conn = new UserConn(username, password, nickname, user->getSiteId(), sender, QString(""));
 
 		/*
 			creazione cartella per utente
 		*/
 		bool nick = false;
-		for (User *u : subs.values())
+		for (User* u : subs.values())
 		{
 			if (u->getNickname() == nickname)
 			{
@@ -607,9 +580,9 @@ void Server::registration(QString username, QString password, QString nickname, 
 	//sender->flush();
 }
 
-void Server::sendFiles(QTcpSocket *receiver)
+void Server::sendFiles(QTcpSocket* receiver)
 {
-	UserConn *conn = connections.find(receiver).value();
+	UserConn* conn = connections.find(receiver).value();
 	QString username = conn->getUsername();
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -648,7 +621,7 @@ void Server::sendFiles(QTcpSocket *receiver)
 	//receiver->flush();
 }
 
-bool Server::login(QString username, QString password, QTcpSocket *sender)
+bool Server::login(QString username, QString password, QTcpSocket* sender)
 {
 	auto tmp = subs.find(username);
 	QByteArray buf;
@@ -659,7 +632,7 @@ bool Server::login(QString username, QString password, QTcpSocket *sender)
 		QString pwd = tmp.value()->getPassword();
 		if (pwd == password)
 		{ //new branch comment
-			UserConn *conn = connections.find(sender).value();
+			UserConn* conn = connections.find(sender).value();
 			conn->setUsername(username);
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
@@ -707,7 +680,7 @@ void Server::load_subs()
 			nickname = line.split(" ")[2];
 			siteId = line.split(" ")[3].toInt();
 
-			User *user = new User(username, password, nickname, siteId);
+			User* user = new User(username, password, nickname, siteId);
 			subs.insert(username, user);
 			siteIdCounter++;
 		}
@@ -748,7 +721,7 @@ void Server::load_files()
 
 			fileOwnersMap.insert(filePath, utenti);
 			QString filename = filePath.split("/")[1];
-			TextFile *f = new TextFile(filename, filePath);
+			TextFile* f = new TextFile(filename, filePath);
 			load_file(f);
 			files.insert(filePath, f);
 		}
@@ -776,7 +749,7 @@ void Server::load_files()
 	}
 }
 
-void Server::load_file(TextFile *f)
+void Server::load_file(TextFile* f)
 {
 	QString filePath = f->getFilePath();
 	QString username = fileOwnersMap[filePath].first();
@@ -834,27 +807,27 @@ void Server::load_file(TextFile *f)
 /*
    Funzione per permette l'accettazione di un invito a collaborare
 */
-void Server::shareOwnership(QString uri, QTcpSocket *sender)
+void Server::shareOwnership(QString uri, QTcpSocket* sender)
 {
 
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 
-	UserConn *tmp = connections.find(sender).value();
+	UserConn* tmp = connections.find(sender).value();
 
 	bool flag = false;
 	for (QString filePath : fileUri.keys())
+	{
+		if (fileUri[filePath] == uri)
 		{
-			if (fileUri[filePath] == uri)
-			{
-				fileOwnersMap[filePath].append(tmp->getUsername());
-				filesForUser[tmp->getUsername()].append(filePath);
-				saveAllFilesStatus();
-				out << 7 << 1 << files[filePath]->getFilename() << subs[fileOwnersMap[filePath].first()]->getUsername() << subs[fileOwnersMap[filePath].first()]->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
-				flag = true;
-				break;
-			}
+			fileOwnersMap[filePath].append(tmp->getUsername());
+			filesForUser[tmp->getUsername()].append(filePath);
+			saveAllFilesStatus();
+			out << 7 << 1 << files[filePath]->getFilename() << subs[fileOwnersMap[filePath].first()]->getUsername() << subs[fileOwnersMap[filePath].first()]->getNickname(); // File condiviso correttamente, comunico al client che può aggiornare la lista dei file
+			flag = true;
+			break;
 		}
+	}
 
 	if (!flag)
 	{
@@ -864,10 +837,10 @@ void Server::shareOwnership(QString uri, QTcpSocket *sender)
 	sender->write(buf);
 }
 
-void Server::requestURI(QString filePath, QTcpSocket *sender)
+void Server::requestURI(QString filePath, QTcpSocket* sender)
 {
 
-	UserConn *tmp = connections.find(sender).value();
+	UserConn* tmp = connections.find(sender).value();
 	//hashFunction(filename, tmp->getUsername(), tmp->getSiteId());
 
 	QByteArray buf;
@@ -887,7 +860,7 @@ void Server::requestURI(QString filePath, QTcpSocket *sender)
 	sender->write(buf);
 }
 
-void Server::eraseFile(QString filename, QString username, QTcpSocket *sender)
+void Server::eraseFile(QString filename, QString username, QTcpSocket* sender)
 {
 
 	/// files -> bio/ciao.txt - utenti connessi
@@ -944,7 +917,7 @@ void Server::eraseFile(QString filename, QString username, QTcpSocket *sender)
 	}
 
 	// Faccio eliminare il file a tutti i client connessi che possono vederlo. Questo eliminerà il file da connections
-	for (QTcpSocket *sock : connections.keys())
+	for (QTcpSocket* sock : connections.keys())
 	{
 		if (fileUsers.contains(connections[sock]->getUsername()))
 		{
@@ -964,7 +937,7 @@ void Server::eraseFile(QString filename, QString username, QTcpSocket *sender)
 	f.remove();
 }
 
-Server::Server(QObject *parent) : QObject(parent)
+Server::Server(QObject* parent) : QObject(parent)
 {
 	server = new QTcpServer(this);
 
@@ -982,20 +955,20 @@ Server::Server(QObject *parent) : QObject(parent)
 
 void Server::onNewConnection()
 {
-	QTcpSocket *socket = server->nextPendingConnection();
+	QTcpSocket* socket = server->nextPendingConnection();
 
 	connect(socket, &QTcpSocket::disconnected, this, &Server::onDisconnected);
 	connect(socket, &QTcpSocket::readyRead, this, &Server::onReadyRead);
 
 	//addConnection
-	UserConn *connection = new UserConn("", "", "", -1, socket, ""); //usr,pwd,nickname,siteId,socket,filename
+	UserConn* connection = new UserConn("", "", "", -1, socket, ""); //usr,pwd,nickname,siteId,socket,filename
 	connections.insert(socket, connection);							 //mappa client connessi
 
 	std::cout << "# of connected users :\t" << connections.size() << std::endl;
 }
 
 // Aggiunge un utente al file "subscribers.txt" dove sono elencati gli utenti.
-void Server::addNewUserToFile(User *user)
+void Server::addNewUserToFile(User* user)
 {
 	QFile file("subscribers.txt");
 	if (file.open(QIODevice::WriteOnly | QIODevice::Append))
@@ -1014,7 +987,7 @@ void Server::rewriteUsersFile()
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text))
 	{
 		QTextStream output(&file);
-		for (User *user : subs.values())
+		for (User* user : subs.values())
 		{
 			output << user->getUsername() << " " << user->getPassword() << " " << user->getNickname() << " " << user->getSiteId() << "\n";
 		}
@@ -1066,9 +1039,9 @@ void Server::addNewFile(QString filePath, QString user)
 	file2.close();
 }
 
-bool Server::isAuthenticated(QTcpSocket *socket)
+bool Server::isAuthenticated(QTcpSocket* socket)
 {
-	UserConn *conn = connections.find(socket).value();
+	UserConn* conn = connections.find(socket).value();
 	if (conn->getUsername() != "")
 	{
 		return true;
@@ -1132,8 +1105,8 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 	if (!d.exists(userFolder))
 	{
 		qWarning() << "Impossibile trovare una cartella associata all'utente!"
-				   << "\n"
-				   << "Creazione cartella";
+			<< "\n"
+			<< "Creazione cartella";
 		/*
 				TODO
 				crea cartello o mando messaggio di errore?
@@ -1191,7 +1164,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 	file.close();
 }
 
-bool Server::readFromLog(TextFile *f)
+bool Server::readFromLog(TextFile* f)
 {
 
 	/*
@@ -1242,7 +1215,7 @@ bool Server::readFromLog(TextFile *f)
 		return false;
 	}
 }
-void Server::deleteLog(TextFile *f)
+void Server::deleteLog(TextFile* f)
 {
 	QString fileLogName = f->getFilename() + "_log.txt";
 	remove(fileLogName.toStdString().c_str());
@@ -1272,13 +1245,13 @@ QString Server::genRandom()
 
 /*La posizione del cursore del sender è cambiata, quindi bisogna avvisare tutti gli
 * altri client che stanno utilizzando a quel file (recivers)*/
-void Server::cursorPositionChanged(int index, QString filename, QTcpSocket *sender)
+void Server::cursorPositionChanged(int index, QString filename, QTcpSocket* sender)
 {
 	if (!isAuthenticated(sender))
 	{
 		return;
 	}
-	TextFile *tf = files.find(filename).value();
+	TextFile* tf = files.find(filename).value();
 	int siteIdSender = connections.find(sender).value()->getSiteId();
 
 	for (auto reciver : tf->getConnections())
