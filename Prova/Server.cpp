@@ -12,7 +12,7 @@ void Server::onDisconnected()
 	QTcpSocket* socket = static_cast<QTcpSocket*>(QObject::sender());
 	QString filename = connections.find(socket).value()->getFilename();
 	qDebug() << filename;
-	if (filename.compare("") != 0)
+	if (filename.compare("") != 0 && fileOwnersMap.contains(filename))
 	{ //se c'� un file associato a quella connessione
 		TextFile* f = files.find(filename).value();
 		if (f->getConnections().size() == 1)
@@ -33,12 +33,6 @@ void Server::saveFile(TextFile* f)
 	QString filePath = f->getFilePath();
 	QString username = fileOwnersMap[filePath].first();
 	QDir d = QDir::current();
-
-	if (!d.exists(username))
-	{
-		//crea cartella
-		qDebug() << "prova";
-	}
 
 	QFile file(d.filePath(filePath));
 	if (file.open(QIODevice::WriteOnly))
@@ -296,8 +290,8 @@ void Server::onReadyRead()
 				QString filename;
 				QString username;
 				in >> filename >> username;
-
 				eraseFile(filename, username, sender);
+				break;
 			}
 			case 11:
 			{
@@ -824,6 +818,11 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender)
 	{
 		if (fileUri[filePath] == uri)
 		{
+			if (fileOwnersMap[filePath].contains(tmp->getUsername())) {
+				out << 7 << 4; // Il client può già vedere il file, errore.
+				sender->write(buf);
+				return;
+			}
 			fileOwnersMap[filePath].append(tmp->getUsername());
 			filesForUser[tmp->getUsername()].append(filePath);
 			saveAllFilesStatus();
@@ -920,16 +919,19 @@ void Server::eraseFile(QString filename, QString username, QTcpSocket* sender)
 		saveURIFileStatus();
 	}
 
-	// Faccio eliminare il file a tutti i client connessi che possono vederlo. Questo eliminerà il file da connections
+	// Faccio eliminare il file a tutti i client connessi che possono vederlo. Elimino poi il file da connections se era aperto nel loro client
 	for (QTcpSocket* sock : connections.keys())
 	{
 		if (fileUsers.contains(connections[sock]->getUsername()))
 		{
-			qDebug() << "ciao";
 			QByteArray buf;
 			QDataStream out(&buf, QIODevice::WriteOnly);
 			out << 9 << 1 << filename << username; // Gli dico di cancellare il file
 			sock->write(buf);
+			
+			if (connections.find(sock).value()->getFilename().compare(filePath) == 0) {
+				connections.find(sock).value()->setFilename("");
+			}		
 		}
 	}
 
