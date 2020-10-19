@@ -175,13 +175,13 @@ void Server::onReadyRead()
 
 					symbolsToSend.push_back(newSym);
 				}
-
+				int siteIdSender = (*myClient)->getSiteId();
 				//mando in out
 				for (QTcpSocket* sock : connections.keys())
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
 					{
-						sendSymbols(n_sym, symbolsToSend, insert == 1, sock, filePath); //false per dire che � una cancellazione
+						sendSymbols(n_sym, symbolsToSend, insert /*== 1*/, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 					}
 				}
 
@@ -456,7 +456,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in,
 	}
 }
 
-void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename)
+void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
@@ -471,7 +471,11 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	{
 		ins = 0;
 	}
-	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins << n_sym;
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
+	if (ins == 0) {
+		out << siteIdSender; //nel caso di cancellazione ho bisogno di sapere (per i cursori) chi cancella il carattere, non può essere dedotto dal simbolo
+	}
+	out << n_sym;
 	for (int i = 0; i < n_sym; i++)
 	{
 		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition() << symbols[i]->getValue()
