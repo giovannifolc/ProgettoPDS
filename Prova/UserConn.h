@@ -14,5 +14,6 @@ public:
 private:
     QTcpSocket* socket;
     QString filename;
+    std::thread thread;
 };
 
