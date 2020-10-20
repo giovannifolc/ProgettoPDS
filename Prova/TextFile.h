@@ -21,8 +21,8 @@ public:
 	void addConnection(QTcpSocket* connection);
 	void removeConnection(QTcpSocket* connection);
 	void pushBackSymbol(std::shared_ptr<Symbol> symbol);
-	void addSymbols(QByteArray bufferSymbols, int n_symbols, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath);
-	void removeSymbols(QByteArray bufferSymbols, int n_symbols, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath);
+	QVector<std::shared_ptr<Symbol>> addSymbols(QByteArray bufferSymbols, int n_symbols, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath);
+	QVector<std::shared_ptr<Symbol>> removeSymbols(QByteArray bufferSymbols, int n_symbols, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath);
 
 
 private:

@@ -156,7 +156,7 @@ void Server::onReadyRead()
 				TextFile* file = fileIterator.value();
 
 				std::vector<QTcpSocket*> clientsConnectedonThisFile;
-
+				QVector<std::shared_ptr<Symbol>> symbolsRcv;
 				for (QTcpSocket* sock : connections.keys())
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
@@ -170,13 +170,22 @@ void Server::onReadyRead()
 				//qDebug() << "Byte dopo del readAll" << sender->bytesAvailable() << "BUFFER " << buffer;
 				if (insert == 1) {
 					//std::thread t([this, &file](QByteArray buffer, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filePath) {file->addSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
-					std::thread t([this, &file, buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath]() {file->addSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
+					std::thread t([this, &file, buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath, &symbolsRcv]() {symbolsRcv = file->addSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
 					t.join();
+					for (QTcpSocket* sock : clientsConnectedonThisFile)
+					{
+						sendSymbols(n_sym, symbolsRcv, 1, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+					}
+
 				}
 				else {
 					//std::thread t([this, &file](QByteArray buffer, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filePath) {file->removeSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
-					std::thread t([this, &file, buffer, n_sym, siteIdSender, clientsConnectedonThisFile,  filePath]() {file->removeSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
+					std::thread t([this, &file, buffer, n_sym, siteIdSender, clientsConnectedonThisFile,  filePath, &symbolsRcv]() {symbolsRcv = file->removeSymbols(buffer, n_sym, siteIdSender, clientsConnectedonThisFile, filePath); return; });
 					t.join();
+					for (QTcpSocket* sock : clientsConnectedonThisFile)
+					{
+						sendSymbols(n_sym, symbolsRcv, 0, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+					}
 				}
 				break;
 			}

@@ -118,7 +118,7 @@ void TextFile::pushBackSymbol(std::shared_ptr<Symbol> sym) {
 	symbols.push_back(sym);
 } 
 
-void TextFile::addSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath) {
+QVector<std::shared_ptr<Symbol>> TextFile::addSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath) {
 	//std::thread t([this, &bufferSymbols, n_sym, siteIdSender, clientsConnectedonThisFile, filepath]() {
 
 		std::lock_guard<std::mutex> ul(mutex);
@@ -149,18 +149,18 @@ void TextFile::addSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSender,
 		}
 
 		//mando in out
-		for (QTcpSocket* sock : clientsConnectedonThisFile)
+		/*for (QTcpSocket* sock : clientsConnectedonThisFile)
 		{
 			sendSymbols(n_sym, symbolsToSend, 1, sock, filePath, siteIdSender); //false per dire che � una cancellazione
-		}
+		}*/
 	//});
 	//poolThread.push_back(std::move(t));
-	return;
+	return symbolsToSend;
 
 }
 
 
-void TextFile::removeSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath) {
+QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSender, std::vector<QTcpSocket*> clientsConnectedonThisFile, QString filepath) {
 	//std::thread t([this, bufferSymbols, n_sym, siteIdSender, clientsConnectedonThisFile, filepath, mutex]() {
 
 	std::lock_guard<std::mutex> ul(mutex);
@@ -186,13 +186,13 @@ void TextFile::removeSymbols(QByteArray bufferSymbols, int n_sym, int siteIdSend
 	}
 
 	//mando in out
-	for (QTcpSocket* sock : clientsConnectedonThisFile)
+	/*for (QTcpSocket* sock : clientsConnectedonThisFile)
 	{
 		sendSymbols(n_sym, symbolsToSend, 0, sock, filePath, siteIdSender); //false per dire che � una cancellazione
-	}
+	}*/
 	//});
 	//poolThread.push_back(std::move(t));
-	return;
+	return symbolsToSend;
 
 }
 
