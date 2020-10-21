@@ -178,7 +178,10 @@ void Server::onReadyRead()
 						sendSymbols(n_sym, symbolsToSend, insert /*== 1*/, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 					}
 				}
-
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+				out << 3 << 2; // mando l'ack. ho finito di leggere il blocco.
+				sender->write(buf);
 
 				qDebug() << "Fine Blocco!";
 
