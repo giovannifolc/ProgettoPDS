@@ -433,6 +433,7 @@ void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpS
 		<< symbol->getTextSize() << symbol->getColor().name() << symbol->getFont();
 
 	socket->write(buf);
+	socket->flush();
 }
 
 void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert)
