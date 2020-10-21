@@ -144,44 +144,44 @@ void Server::onReadyRead()
 				QString creatore;
 				QString filePath;
 				int n_sym;
-				in >> insert >> filename >> creatore >> n_sym;
+				in >> insert >> filename >> creatore;// >> n_sym;
 				QVector<std::shared_ptr<Symbol>> symbolsToSend;
 
 				filePath = creatore + "/" + filename;
 
-				for (int i = 0; i < n_sym; i++)
+				//for (int i = 0; i < n_sym; i++)
+				//{
+				int siteId, counter;
+				QVector<int> pos;
+				in >> siteId >> counter >> pos;
+				std::shared_ptr<Symbol> newSym;
+				if (insert == 1)
 				{
-					int siteId, counter;
-					QVector<int> pos;
-					in >> siteId >> counter >> pos;
-					std::shared_ptr<Symbol> newSym;
-					if (insert == 1)
-					{
-						insertSymbol(filePath, sender, &in, siteId, counter, pos);
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-					}
-					else
-					{
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-						deleteSymbol(filePath, siteId, counter, pos, sender);
-					}
-
-
-					symbolsToSend.push_back(newSym);
+					insertSymbol(filePath, sender, &in, siteId, counter, pos);
+					newSym = files.find(filePath).value()->getSymbol(siteId, counter);
 				}
+				else
+				{
+					newSym = files.find(filePath).value()->getSymbol(siteId, counter);
+					deleteSymbol(filePath, siteId, counter, pos, sender);
+				}
+
+
+				symbolsToSend.push_back(newSym);
+				//}
 				int siteIdSender = (*myClient)->getSiteId();
 				//mando in out
 				for (QTcpSocket* sock : connections.keys())
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
 					{
-						sendSymbols(n_sym, symbolsToSend, insert /*== 1*/, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+						sendSymbols(1, symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 					}
 				}
-				QByteArray buf;
-				QDataStream out(&buf, QIODevice::WriteOnly);
-				out << 3 << 2; // mando l'ack. ho finito di leggere il blocco.
-				sender->write(buf);
+				//QByteArray buf;
+				//QDataStream out(&buf, QIODevice::WriteOnly);
+				//out << 3 << 2; // mando l'ack. ho finito di leggere il blocco.
+				//sender->write(buf);
 
 				qDebug() << "Fine Blocco!";
 
@@ -492,13 +492,13 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	if (ins == 0) {
 		out << siteIdSender; //nel caso di cancellazione ho bisogno di sapere (per i cursori) chi cancella il carattere, non può essere dedotto dal simbolo
 	}
-	out << n_sym;
-	for (int i = 0; i < n_sym; i++)
-	{
-		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition() << symbols[i]->getValue()
-			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
-			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
-	}
+	//out << n_sym;
+	//for (int i = 0; i < n_sym; i++)
+	//{
+		out << symbols[0]->getSiteId() << symbols[0]->getCounter() << symbols[0]->getPosition() << symbols[0]->getValue()
+			<< symbols[0]->isBold() << symbols[0]->isItalic() << symbols[0]->isUnderlined() << symbols[0]->getAlignment()
+			<< symbols[0]->getTextSize() << symbols[0]->getColor().name() << symbols[0]->getFont();
+	//}
 	socket->write(buf);
 	socket->flush();
 }
