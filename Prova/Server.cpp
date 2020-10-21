@@ -385,6 +385,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 		for (QString username : vect)
 		{
 			out2 << subs.find(username).value()->getSiteId() << subs.find(username).value()->getNickname();
+			qDebug() << subs.find(username).value()->getNickname();
 		}
 		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
 		for (auto conn : tf->getConnections())
@@ -552,10 +553,26 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 }
 
 void Server::changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender) {
+	
+	for (QTcpSocket* sock : connections.keys())
+	{
+		for (QString file : filesForUser[username])
+		{
+			if (fileOwnersMap[file][0] == username && filesForUser[connections[sock]->getUsername()].contains(file))
+			{
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+				out << 10 << subs[username]->getNickname() << nickname;
+				sock->write(buf);
+				break;
+			}
+		}
+	}
+	
 	subs[username]->setNickname(nickname);
+	connections.find(sender).value()->setNickname(nickname);
 	subs[username]->setImage(image);
 	rewriteUsersFile();
-
 	QDir d = QDir::current();
 	if (!d.exists(username + "/image")) {
 		d.mkdir(username + "/image");
@@ -564,7 +581,24 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 }
 
 void Server::changeProfile(QString username, QString nickname, QTcpSocket* sender) {
+	
+	for (QTcpSocket* sock : connections.keys()) 
+	{
+		for (QString file : filesForUser[username]) 
+		{
+			if (fileOwnersMap[file][0] == username && filesForUser[connections[sock]->getUsername()].contains(file)) 
+			{
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+				out << 10 << subs[username]->getNickname() << nickname;
+				sock->write(buf);
+				break;
+			}
+		}
+	}
+
 	subs[username]->setNickname(nickname);
+	connections.find(sender).value()->setNickname(nickname);
 	rewriteUsersFile();
 }
 
