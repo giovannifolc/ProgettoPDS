@@ -35,7 +35,7 @@ private slots:
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QTcpSocket* receiver);
-	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
+	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream &in, int siteId, int counter, QVector<int> pos);
 	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket);
 	void sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId);
 	void sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert);
@@ -74,6 +74,7 @@ private:
 	void deleteLog(TextFile* f);
 	void cursorPositionChanged(int index, QString filename, QTcpSocket* sender);
 	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender);
+	void sendBytesToClients(int n_sym, QByteArray symbols, bool insert, QTcpSocket* socket, int siteIdSender);
 
 
 	QString genRandom();

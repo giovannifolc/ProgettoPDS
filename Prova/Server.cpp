@@ -136,48 +136,63 @@ void Server::onReadyRead()
 			}
 			case 3:
 			{
-
 				qDebug() << "Inizio blocco: " << sender->bytesAvailable() << " byte da scrivere";
-
 				int insert;
 				QString filename;
 				QString creatore;
 				QString filePath;
 				int n_sym;
-				in >> insert >> filename >> creatore >> n_sym;
-				QVector<std::shared_ptr<Symbol>> symbolsToSend;
+				int siteIdSender = (*myClient)->getSiteId();
 
+				QByteArray bytesRecvFromClient;
+				bytesRecvFromClient = sender->readAll();
+				QDataStream streamBytesRecv(bytesRecvFromClient);
+				streamBytesRecv >> insert >> filename >> creatore >> n_sym;
 				filePath = creatore + "/" + filename;
 
-				for (int i = 0; i < n_sym; i++)
-				{
-					int siteId, counter;
-					QVector<int> pos;
-					in >> siteId >> counter >> pos;
-					std::shared_ptr<Symbol> newSym;
-					if (insert == 1)
-					{
-						insertSymbol(filePath, sender, &in, siteId, counter, pos);
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-					}
-					else
-					{
-						newSym = files.find(filePath).value()->getSymbol(siteId, counter);
-						deleteSymbol(filePath, siteId, counter, pos, sender);
-					}
 
-
-					symbolsToSend.push_back(newSym);
-				}
-				int siteIdSender = (*myClient)->getSiteId();
-				//mando in out
 				for (QTcpSocket* sock : connections.keys())
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
 					{
-						sendSymbols(n_sym, symbolsToSend, insert /*== 1*/, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+						sendBytesToClients(n_sym, bytesRecvFromClient, insert, sock, siteIdSender); //insert=0 per dire che � una cancellazione
 					}
 				}
+
+				//in >> insert >> filename >> creatore >> n_sym;
+				//QVector<std::shared_ptr<Symbol>> symbolsToSend;
+				
+				for (int i = 0; i < n_sym; i++)
+				{
+					int siteId, counter;
+					QVector<int> pos;
+					streamBytesRecv >> siteId >> counter >> pos;
+					//std::shared_ptr<Symbol> newSym;
+					if (insert == 1)
+					{
+						insertSymbol(filePath, sender, streamBytesRecv, siteId, counter, pos);
+						//newSym = files.find(filePath).value()->getSymbol(siteId, counter);
+					}
+					else
+					{
+						//newSym = files.find(filePath).value()->getSymbol(siteId, counter);
+						deleteSymbol(filePath, siteId, counter, pos, sender);
+					}
+
+
+					//symbolsToSend.push_back(newSym);
+				}
+				
+				//mando in out
+				
+				/*provo ad ottimizzarlo spostandolo in alto e usando il buffer al posto dei simboli.
+				for (QTcpSocket* sock : connections.keys())
+				{
+					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
+					{
+						sendSymbols(n_sym, symbolsToSend, insert, sock, filePath, siteIdSender); //insert=0 per dire che � una cancellazione
+					}
+				}*/
 				QByteArray buf;
 				QDataStream out(&buf, QIODevice::WriteOnly);
 				out << 3 << 2; // mando l'ack. ho finito di leggere il blocco.
@@ -433,7 +448,7 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool i
 	//socket->flush();
 }
 
-void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
+void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream &in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
@@ -445,7 +460,7 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in,
 		int alignment, textSize;
 		QColor color;
 		QString font;
-		*in >> value >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
+		in >> value >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
@@ -479,6 +494,33 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
 			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
 	}
+	socket->write(buf);
+	socket->flush();
+}
+
+void Server::sendBytesToClients(int n_sym, QByteArray symbols, bool insert, QTcpSocket* socket, int siteIdSender)
+{
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	int ins;
+	if (socket->state() != QAbstractSocket::ConnectedState)
+		return;
+	if (insert)
+	{
+		ins = 1;
+	}
+	else
+	{
+		ins = 0;
+	}
+	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
+	if (ins == 0) {
+		out << siteIdSender; //nel caso di cancellazione ho bisogno di sapere (per i cursori) chi cancella il carattere, non può essere dedotto dal simbolo
+	}
+	out << n_sym;
+	
+	buf.append(symbols);
+	
 	socket->write(buf);
 	socket->flush();
 }
