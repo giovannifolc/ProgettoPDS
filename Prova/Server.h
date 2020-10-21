@@ -70,6 +70,8 @@ private:
 	void saveURIFileStatus(); // salva il file file_uri.txt
 	void requestURI(QString filePath, QTcpSocket* sender);
 	void eraseFile(QString filename, QString username, QTcpSocket* sender);
+	void changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender);
+	void changeProfile(QString username, QString nickname, QTcpSocket* sender);
 	void writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert);
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);

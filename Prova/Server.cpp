@@ -112,7 +112,7 @@ void Server::onReadyRead()
 
 				if (username.contains("/") || username.contains("\\") || username.contains(":") ||
 					username.contains("*") || username.contains("?") || username.contains("\"") ||
-					username.contains("<") || username.contains(">") || username.contains("|"))
+					username.contains("<") || username.contains(">") || username.contains("|") || username.contains(" "))
 				{
 					QByteArray buf;
 					QDataStream out(&buf, QIODevice::WriteOnly);
@@ -192,7 +192,7 @@ void Server::onReadyRead()
 
 				if (filename.contains("/") || filename.contains("\\") || filename.contains(":") ||
 					filename.contains("*") || filename.contains("?") || filename.contains("\"") ||
-					filename.contains("<") || filename.contains(">") || filename.contains("|"))
+					filename.contains("<") || filename.contains(">") || filename.contains("|") || filename.contains(" "))
 				{
 					QByteArray buf;
 					QDataStream out(&buf, QIODevice::WriteOnly);
@@ -241,11 +241,11 @@ void Server::onReadyRead()
 			   Implemento la share ownership
 			*/
 
-				int operation;
+				int op;
 
-				in >> operation;
+				in >> op;
 
-				if (operation == 1)
+				if (op == 1)
 				{
 
 					QString uri;
@@ -253,7 +253,7 @@ void Server::onReadyRead()
 
 					shareOwnership(uri, sender);
 				}
-				else if (operation == 2)
+				else if (op == 2)
 				{
 
 					QString filename;
@@ -291,6 +291,26 @@ void Server::onReadyRead()
 				QString username;
 				in >> filename >> username;
 				eraseFile(filename, username, sender);
+				break;
+			}
+			case 10:
+			{
+				// Cambio nickname/immagine profilo
+				int op;
+				in >> op;
+				if (op == 1) {
+					QString username;
+					QString nickname;
+					QImage image;
+					in >> username >> nickname >> image;
+					changeProfile(username, nickname, image, sender);
+				}
+				else if(op == 2) {
+					QString username;
+					QString nickname;
+					in >> username >> nickname;
+					changeProfile(username, nickname, sender);
+				}
 				break;
 			}
 			case 11:
@@ -524,6 +544,23 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	//receiver->flush();
 }
 
+void Server::changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender) {
+	subs[username]->setNickname(nickname);
+	subs[username]->setImage(image);
+	rewriteUsersFile();
+
+	QDir d = QDir::current();
+	if (!d.exists(username + "/image")) {
+		d.mkdir(username + "/image");
+	}
+	image.save(username + "/image/image.png", "PNG");
+}
+
+void Server::changeProfile(QString username, QString nickname, QTcpSocket* sender) {
+	subs[username]->setNickname(nickname);
+	rewriteUsersFile();
+}
+
 void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender)
 {
 	QDir d;
@@ -631,7 +668,12 @@ bool Server::login(QString username, QString password, QTcpSocket* sender)
 			conn->setPassword(password);
 			conn->setNickname(tmp.value()->getNickname());
 			conn->setSiteId(tmp.value()->getSiteId());
-			out << 1 << username << tmp.value()->getNickname(); //operazione riuscita  e nickname
+			if (subs[username]->getHaveImage()) {
+				out << 1 << 2 << username << tmp.value()->getNickname() << subs[username]->getImage(); //operazione riuscita e nickname + foto
+			}
+			else {
+				out << 1 << 1 << username << tmp.value()->getNickname(); //operazione riuscita e nickname
+			}
 			sender->write(buf);
 			//sender->flush();
 			return true;
@@ -674,8 +716,18 @@ void Server::load_subs()
 			nickname = line.split(" ")[2];
 			siteId = line.split(" ")[3].toInt();
 
-			User* user = new User(username, password, nickname, siteId);
-			subs.insert(username, user);
+			QDir dir;
+			if (dir.exists(username + "/image/image.png")) {
+				QImage image;
+				image.load(username + "/image/image.png");
+				User* user = new User(username, password, nickname, siteId, image);
+				subs.insert(username, user);
+			}
+			else {		
+				User* user = new User(username, password, nickname, siteId);
+				subs.insert(username, user);
+			}	
+			
 			siteIdCounter++;
 		}
 		fin.close();

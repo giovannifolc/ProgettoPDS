@@ -3,8 +3,14 @@
 User::User(QString username, QString password, QString nickname, int siteId)
 	: username(username), password(password), nickname(nickname), siteId(siteId)
 {
+	this->haveImage = false;
 }
 
+User::User(QString username, QString password, QString nickname, int siteId, QImage image)
+	: username(username), password(password), nickname(nickname), siteId(siteId), image(image)
+{
+	this->haveImage = true;
+}
 
 User::~User()
 {
@@ -45,4 +51,17 @@ int User::getSiteId() {
 void User::setSiteId(int siteId)
 {
 	this->siteId = siteId;
+}
+
+QImage User::getImage() {
+	return this->image;
+}
+
+void User::setImage(QImage image) {
+	this->image = image;
+	haveImage = true;
+}
+
+bool User::getHaveImage() {
+	return haveImage;
 }
