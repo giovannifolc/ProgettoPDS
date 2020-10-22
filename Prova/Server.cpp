@@ -150,6 +150,7 @@ void Server::onReadyRead()
 				streamBytesRecv >> insert >> filename >> creatore >> n_sym;
 				filePath = creatore + "/" + filename;
 
+				qDebug() << bytesRecvFromClient;
 
 				for (QTcpSocket* sock : connections.keys())
 				{
@@ -513,14 +514,14 @@ void Server::sendBytesToClients(int n_sym, QByteArray symbols, bool insert, QTcp
 	{
 		ins = 0;
 	}
-	out << 3 /*numero operazione (inserimento-cancellazione)*/ << ins;
-	if (ins == 0) {
-		out << siteIdSender; //nel caso di cancellazione ho bisogno di sapere (per i cursori) chi cancella il carattere, non può essere dedotto dal simbolo
+	out << 3; /*numero operazione (inserimento-cancellazione) << ins */
+	if (ins != 1) {
+		out << ins << siteIdSender; //nel caso di cancellazione ho bisogno di sapere (per i cursori) chi cancella il carattere, non può essere dedotto dal simbolo
+		
 	}
-	out << n_sym;
 	
 	buf.append(symbols);
-	
+	qDebug() << buf;
 	socket->write(buf);
 	socket->flush();
 }
@@ -1158,6 +1159,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		qWarning() << "Impossibile trovare una cartella associata all'utente!"
 			<< "\n"
 			<< "Creazione cartella";
+		d.mkdir(userFolder);
 		/*
 				TODO
 				crea cartello o mando messaggio di errore?
@@ -1223,8 +1225,19 @@ bool Server::readFromLog(TextFile* f)
 
 	*/
 
-	QString fileLogName = f->getFilename() + "_log.txt";
-	QFile fin(fileLogName);
+	QString userFolder = f->getFilePath().split("/")[0];
+
+	QString fileLogPath = f->getFilePath() + "_log.txt";
+	
+	QDir dir = QDir::current();
+
+
+	if (QFile::exists(fileLogPath)) {
+		qDebug() << "Errore! Non è stato possibile trovare il file.\n";
+		return false;
+	}
+	
+	QFile fin(dir.filePath(fileLogPath));
 	if (fin.open(QIODevice::ReadOnly))
 	{
 		QTextStream in(&fin);
@@ -1268,8 +1281,8 @@ bool Server::readFromLog(TextFile* f)
 }
 void Server::deleteLog(TextFile* f)
 {
-	QString fileLogName = f->getFilename() + "_log.txt";
-	remove(fileLogName.toStdString().c_str());
+	QString fileLogPath = f->getFilePath() + "_log.txt";
+	remove(fileLogPath.toStdString().c_str());
 }
 
 QString Server::genRandom()
