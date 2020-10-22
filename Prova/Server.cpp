@@ -43,9 +43,9 @@ void Server::saveFile(TextFile* f)
 		stream << size << endl;
 		for (auto s : files.find(filePath).value()->getSymbols())
 		{
-			qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " << s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
+			/*qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " << s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
 				<< " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
-
+*/
 			stream << pos++ << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
 			if (s->isBold())
 			{
@@ -391,7 +391,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 	if (connections.contains(socket) && !flag)
 	{
 		files.find(filePath).value()->addConnection(socket);
-		connections.find(socket).value()->setFilename(filePath);
+		connections[socket]->setFilename(filePath);
 	}
 	socket->write(buf);
 }
