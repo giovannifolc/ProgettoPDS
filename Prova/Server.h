@@ -36,7 +36,7 @@ private slots:
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QTcpSocket* receiver);
 	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
-	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket);
+	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket, int totalSize);
 	void sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId);
 	void sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert);
 	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);

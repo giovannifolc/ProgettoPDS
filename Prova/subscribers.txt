@@ -1,2 +1,2 @@
 Bio 123 b 0
-Mik 12 M 1
+Mik 12 Mik 1
