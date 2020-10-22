@@ -1150,7 +1150,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 	QString filename = filePath.split("/")[1];
 	QString userFolder = filePath.split("/")[0];
 
-	QString fileLogName = filename + "_log.txt";
+	QString fileLogPath = filePath.remove(filePath.size() - 4, 4) + "_log.txt";
 
 	QDir d = QDir::current();
 
@@ -1167,7 +1167,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		*/
 	}
 
-	QFile file(d.filePath(filePath));
+	QFile file(d.filePath(fileLogPath));
 
 	if (file.open(QIODevice::WriteOnly | QIODevice::Append))
 	{
@@ -1227,12 +1227,12 @@ bool Server::readFromLog(TextFile* f)
 
 	QString userFolder = f->getFilePath().split("/")[0];
 
-	QString fileLogPath = f->getFilePath() + "_log.txt";
+	QString fileLogPath = f->getFilePath().remove(f->getFilePath().size() - 4, 4) + "_log.txt";
 	
 	QDir dir = QDir::current();
 
 
-	if (QFile::exists(fileLogPath)) {
+	if (!QFile::exists(fileLogPath)) {
 		qDebug() << "Errore! Non è stato possibile trovare il file.\n";
 		return false;
 	}
@@ -1281,7 +1281,7 @@ bool Server::readFromLog(TextFile* f)
 }
 void Server::deleteLog(TextFile* f)
 {
-	QString fileLogPath = f->getFilePath() + "_log.txt";
+	QString fileLogPath = f->getFilePath().remove(f->getFilePath().size() - 4, 4) + "_log.txt";
 	remove(fileLogPath.toStdString().c_str());
 }
 
