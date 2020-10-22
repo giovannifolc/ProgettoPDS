@@ -597,9 +597,13 @@ void Server::changeProfile(QString username, QString nickname, QTcpSocket* sende
 		}
 	}
 
-	subs[username]->setNickname(nickname);
-	connections.find(sender).value()->setNickname(nickname);
-	rewriteUsersFile();
+	
+	if (connections.contains(sender)) {
+		subs[username]->setNickname(nickname);
+		connections[sender]->setNickname(nickname);
+		rewriteUsersFile();
+	}
+	
 }
 
 void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender)
