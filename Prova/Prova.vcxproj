@@ -165,11 +165,13 @@
     <ClCompile Include="Symbol.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Task.cpp" />
     <ClCompile Include="TextFile.cpp" />
     <ClCompile Include="User.cpp" />
     <ClCompile Include="UserConn.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Task.h" />
     <ClInclude Include="UserConn.h" />
     <QtMoc Include="Server.h" />
     <ClInclude Include="Symbol.h" />

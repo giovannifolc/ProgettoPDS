@@ -48,6 +48,9 @@
     <ClCompile Include="Symbol.cpp">
       <Filter>Server\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Task.cpp">
+      <Filter>Server\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="GeneratedFiles\moc_predefs.h.cbt">
@@ -70,6 +73,9 @@
       <Filter>Server\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Symbol.h">
+      <Filter>Server\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Task.h">
       <Filter>Server\Header Files</Filter>
     </ClInclude>
   </ItemGroup>

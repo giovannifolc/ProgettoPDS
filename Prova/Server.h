@@ -44,7 +44,7 @@ private slots:
 private:
 	QTcpServer* server;
 	int siteIdCounter = 0; //devo salvarlo da qualche parte in caso di crash?
-
+	
 	QMap<QTcpSocket*, UserConn*> connections;//client connessi
 
 	QMap<QString, TextFile*> files;//file in archivio
@@ -75,8 +75,9 @@ private:
 	bool readFromLog(TextFile* f);
 	void deleteLog(TextFile* f);
 	void cursorPositionChanged(int index, QString filename, QTcpSocket* sender);
-	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender);
-
+	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, int siteIdSender);
+	void sendFileWithAck(QString filename, QString filePath, QTcpSocket* socket, int siteId);
+	void sendPartOfTextFile(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, QTcpSocket* socket);
 
 	QString genRandom();
 

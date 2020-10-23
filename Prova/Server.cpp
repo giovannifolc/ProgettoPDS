@@ -43,9 +43,9 @@ void Server::saveFile(TextFile* f)
 		stream << size << endl;
 		for (auto s : files.find(filePath).value()->getSymbols())
 		{
-			qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " << s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
+			/*qDebug() << pos + 1 << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " " << s->isBold() << " " << s->isItalic() << " " << s->isUnderlined() << " " << s->getAlignment()
 				<< " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
-
+				*/
 			stream << pos++ << " " << s->getCounter() << " " << s->getSiteId() << " " << s->getValue() << " ";
 			if (s->isBold())
 			{
@@ -175,7 +175,28 @@ void Server::onReadyRead()
 				{
 					if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
 					{
-						sendSymbols(n_sym, symbolsToSend, insert /*== 1*/, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+						auto userIt = connections.find(sock);
+						if (userIt == connections.end()) {
+							continue;
+						}
+						UserConn* user = userIt.value();
+						if (user->isBusy()) {
+							user->pushTask(symbolsToSend, n_sym, insert, siteIdSender);
+						}
+						else {
+							user->setBusy(true);
+							if (user->havePendingTask()) {
+								std::shared_ptr<Task> task = user->popTask();
+								if (task->getNSymb() != 0) {
+									user->pushTask(symbolsToSend, n_sym, insert, siteIdSender); //metto in coda i simboli appena arrivati, c'erano altri simboli in attesa.
+									symbolsToSend = task->getSymbols();
+									n_sym = task->getNSymb();
+									insert = task->getInsert();
+									siteIdSender = task->getSiteIdSender();
+								}
+							}
+							sendSymbols(n_sym, symbolsToSend, insert, sock, siteIdSender); //false per dire che � una cancellazione
+						}
 					}
 				}
 				QByteArray buf;
@@ -209,7 +230,8 @@ void Server::onReadyRead()
 
 				QString filePath = creatore + "/" + filename;
 
-				sendFile(filename, filePath, sender, siteIdTmp);
+				//sendFile(filename, filePath, sender, siteIdTmp);
+				sendFileWithAck(filename, filePath, sender, siteIdTmp);
 
 				break;
 			}
@@ -323,6 +345,54 @@ void Server::onReadyRead()
 				cursorPositionChanged(index, (*myClient)->getFilename(), sender);
 				break;
 			}
+			case 12: //il client mi comunica che non è più occupato nella lettura di un blocco
+			{
+				QString filename, creatore, filePath;
+
+				in >> filename >> creatore;
+				filePath = creatore + "/" + filename; // si potrebbe controllare se il file è giusto PER ORA NON LO FACCIO.
+
+				if (!connections.contains(sender)) {
+					return;
+				}
+				UserConn* user = connections[sender];
+				if (user->havePendingTask()) {
+					user->setBusy(true);
+					std::shared_ptr<Task> task = user->popTask();
+					if (task->getNSymb() != 0) {
+						sendSymbols(task->getNSymb(), task->getSymbols(), task->getInsert(), sender, task->getSiteIdSender()); 
+					}
+				}
+				else {
+					user->setBusy(false);
+				}
+				break;
+			}
+			case 13:
+			{
+				if (!connections.contains(sender)) {
+					return;
+				}
+				UserConn* user = connections[sender];
+				int counterBlocks = user->getCounter();
+				if (counterBlocks == 0) {
+					user->setBusy(false);
+				}
+				else {
+					std::shared_ptr<Task> task = user->popTask();
+					sendPartOfTextFile(task->getNSymb(), task->getSymbols(), sender);
+					user->setBusy(true);
+					counterBlocks--;
+					user->setCounter(counterBlocks);
+					if (counterBlocks == 0) {
+						QByteArray buf;
+						QDataStream out(&buf, QIODevice::WriteOnly);
+
+						out << 160;
+						sender->write(buf);
+					}
+				}
+			}
 			default:
 				break;
 			}
@@ -347,6 +417,157 @@ void Server::saveIfLast(QString filename)
 			saveFile(files.find(filename).value());
 		}
 	}
+}
+
+void Server::sendFileWithAck(QString filename, QString filePath, QTcpSocket* socket, int siteId)
+{
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+
+	bool flag = false;
+
+	if (files.contains(filePath))
+	{
+		if (!connections.contains(socket)) {
+			return;
+		}
+		UserConn* user = connections[socket];
+		TextFile* tf = files.find(filePath).value();
+
+		out << 4 << tf->getConnections().size();  //mando la quantità di client già connessi
+		
+		for (auto conn : tf->getConnections())
+		{
+			out << connections.find(conn).value()->getSiteId() << connections.find(conn).value()->getNickname();
+		}
+
+		if (fileOwnersMap.contains(filePath)) {
+			QVector<QString> vect = fileOwnersMap[filePath];
+			out << vect.size();
+			for (QString username : vect)
+			{
+				out << subs.find(username).value()->getSiteId() << subs.find(username).value()->getNickname();
+				qDebug() << subs.find(username).value()->getNickname();
+			}
+		}
+
+		//mando a tutti i client con lo stesso file aperto un avviso che c'� un nuovo connesso
+		for (auto conn : tf->getConnections())
+		{
+			sendClient(connections[socket]->getSiteId(), connections[socket]->getNickname(), conn, true);
+		}
+		socket->write(buf);
+		socket->flush();
+
+		//  INIZIO INVIO FILE. LO METTO IN UNA CODA DI TASK E PIAN PIANO LO INVIO.
+		QVector<std::shared_ptr<Symbol>> symbols;
+		QVector<std::shared_ptr<Symbol>> symbolsFile = tf->getSymbols();
+		
+		
+		int counter = 0;
+		int counterBlocks = 0;
+		int nSymbolsInABlock = 300;
+		while (counter < symbolsFile.size()) {
+			if (counter + nSymbolsInABlock < symbolsFile.size() - 1) {
+				symbols = symbolsFile.mid(counter, nSymbolsInABlock);
+				user->pushTask(symbols, nSymbolsInABlock, 1, user->getSiteId());
+			}
+			else {
+				symbols = tf->getSymbols().mid(counter, symbolsFile.size() - counter);
+				user->pushTask(symbols, symbols.size(), 1, user->getSiteId());
+			}
+			counter += nSymbolsInABlock;
+			counterBlocks++;
+		}
+		
+		if (!user->havePendingTask()) {//file vuoto
+			user->pushTask(symbols, 0, 1, user->getSiteId());
+			counterBlocks = 1;
+		}
+		std::shared_ptr<Task> task = user->popTask();
+		sendPartOfTextFile(task->getNSymb(), task->getSymbols(), socket);
+		counterBlocks--;
+
+		user->setBusy(true);
+		user->setCounter(counterBlocks);
+		if (counterBlocks == 0) { //nel caso il file sia già finito mando la fine 160 che indica la fine del file.
+			QByteArray buf2;
+			QDataStream out2(&buf2, QIODevice::WriteOnly);
+
+			out2 << 160;
+			socket->write(buf2);
+			socket->flush();
+		}
+		
+		/*
+		* QByteArray buf_header;
+		QDataStream out_header(&buf_header, QIODevice::WriteOnly);
+		QByteArray buf_payload;
+		QDataStream out_payload(&buf_payload, QIODevice::WriteOnly);
+		QByteArray tot;
+		for (auto s : tf->getSymbols())
+		{
+			out_payload << s->getSiteId() << s->getCounter() << s->getPosition() << s->getValue() << s->isBold()
+				<< s->isItalic() << s->isUnderlined() << s->getAlignment() << s->getTextSize() << s->getColor() << s->getFont();
+			if (buf_payload.size() > 50000) { //max buff 65532
+				out_header << 13 << counter;
+				tot.append(buf_header);
+				tot.append(buf_payload);
+				user->pushTask(tot);
+				tot = "";
+				buf_header = "";
+				buf_payload = "";
+				out_payload.device()->reset();
+				out_header.device()->reset();
+			}
+		}
+		out_header << 13 << counter;
+		tot.append(buf_header);
+		tot.append(buf_payload);
+		user->pushTask(tot);
+		tot = "";
+		buf_header = "";
+		buf_payload = "";
+		out_payload.device()->reset();
+		out_header.device()->reset();
+		*/
+		
+	}
+	else
+	{
+		//creo un nuovo file
+		if (connections.contains(socket))
+		{
+			TextFile* tf = new TextFile(filename, filePath, socket);
+			files.insert(filePath, tf);
+			//filesForUser[connections.find(socket).value()->getUsername()].append(filename);       spostata nella addNewFile
+			addNewFile(filePath, connections.find(socket).value()->getUsername());
+		}
+	}
+	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
+	if (connections.contains(socket) && !flag)
+	{
+		files.find(filePath).value()->addConnection(socket);
+		connections.find(socket).value()->setFilename(filePath);
+	}
+}
+
+void Server::sendPartOfTextFile(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, QTcpSocket* socket) {
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	int ins;
+	if (socket->state() != QAbstractSocket::ConnectedState)
+		return;
+
+	out << 13 << n_sym;
+	for (int i = 0; i < n_sym; i++)
+	{
+		out << symbols[i]->getSiteId() << symbols[i]->getCounter() << symbols[i]->getPosition() << symbols[i]->getValue()
+			<< symbols[i]->isBold() << symbols[i]->isItalic() << symbols[i]->isUnderlined() << symbols[i]->getAlignment()
+			<< symbols[i]->getTextSize() << symbols[i]->getColor().name() << symbols[i]->getFont();
+	}
+	socket->write(buf);
+	socket->flush();
 }
 
 void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId)
@@ -474,13 +695,14 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in,
 	}
 }
 
-void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender)
+void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, int siteIdSender)
 {
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int ins;
 	if (socket->state() != QAbstractSocket::ConnectedState)
 		return;
+
 	if (insert)
 	{
 		ins = 1;
