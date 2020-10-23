@@ -523,6 +523,7 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	int flag = 1;
 	UserConn* tmp = connections.find(receiver).value();
+	
 	if (tmp->getUsername() == username)
 	{
 		if (old_password == tmp->getPassword())
@@ -554,6 +555,23 @@ void Server::changeCredentials(QString username, QString old_password, QString n
 
 void Server::changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender) {
 	
+	bool nick = false;
+	for (User* u : subs.values())
+	{
+		if (u->getNickname() == nickname)
+		{
+			nick = true;
+			break;
+		}
+	}
+	if (nick)
+	{
+		QByteArray buf;
+		QDataStream out(&buf, QIODevice::WriteOnly);
+		out << 10 << 2 << subs[username]->getNickname(); // Nickname già esistente
+		sender->write(buf);
+		return;
+	}
 	for (QTcpSocket* sock : connections.keys())
 	{
 		for (QString file : filesForUser[username])
@@ -562,7 +580,7 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 			{
 				QByteArray buf;
 				QDataStream out(&buf, QIODevice::WriteOnly);
-				out << 10 << subs[username]->getNickname() << nickname;
+				out << 10 << 1 << subs[username]->getNickname() << nickname;
 				sock->write(buf);
 				break;
 			}
@@ -570,9 +588,11 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 	}
 	
 	subs[username]->setNickname(nickname);
-	connections.find(sender).value()->setNickname(nickname);
 	subs[username]->setImage(image);
 	rewriteUsersFile();
+	if (connections.contains(sender)) {
+		connections[sender]->setNickname(nickname);
+	}
 	QDir d = QDir::current();
 	if (!d.exists(username + "/image")) {
 		d.mkdir(username + "/image");
@@ -582,6 +602,23 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 
 void Server::changeProfile(QString username, QString nickname, QTcpSocket* sender) {
 	
+	bool nick = false;
+	for (User* u : subs.values())
+	{
+		if (u->getNickname() == nickname)
+		{
+			nick = true;
+			break;
+		}
+	}
+	if (nick)
+	{
+		QByteArray buf;
+		QDataStream out(&buf, QIODevice::WriteOnly);
+		out << 10 << 2 << subs[username]->getNickname(); // Nickname già esistente
+		sender->write(buf);
+		return;
+	}
 	for (QTcpSocket* sock : connections.keys()) 
 	{
 		for (QString file : filesForUser[username]) 
@@ -590,18 +627,18 @@ void Server::changeProfile(QString username, QString nickname, QTcpSocket* sende
 			{
 				QByteArray buf;
 				QDataStream out(&buf, QIODevice::WriteOnly);
-				out << 10 << subs[username]->getNickname() << nickname;
+				out << 10 << 1 << subs[username]->getNickname() << nickname;
 				sock->write(buf);
 				break;
 			}
 		}
 	}
 
+	subs[username]->setNickname(nickname);
+	rewriteUsersFile();
 	
-	if (connections.contains(sender)) {
-		subs[username]->setNickname(nickname);
-		connections[sender]->setNickname(nickname);
-		rewriteUsersFile();
+	if (connections.contains(sender)) {		
+		connections[sender]->setNickname(nickname);	
 	}
 	
 }
