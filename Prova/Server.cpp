@@ -791,10 +791,12 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 		}
 	}
 	
-	subs[username]->setNickname(nickname);
-	connections.find(sender).value()->setNickname(nickname);
 	subs[username]->setImage(image);
+	subs[username]->setNickname(nickname);
 	rewriteUsersFile();
+	if (connections.contains(sender)) {
+		connections[sender]->setNickname(nickname);
+	}
 	QDir d = QDir::current();
 	if (!d.exists(username + "/image")) {
 		d.mkdir(username + "/image");
