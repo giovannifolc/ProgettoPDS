@@ -84,6 +84,7 @@ void Server::onReadyRead()
 	auto myClient = connections.find(sender);
 	//se esiste nel nostro elenco di client connessi riceviamo, altrimenti no
 	while (sender->bytesAvailable() != 0) {
+		qDebug() << "Entrato nel while iniziale";
 		if (myClient != connections.end())
 		{
 			int operation, dim;
@@ -112,6 +113,8 @@ void Server::onReadyRead()
 
 			case 0:
 			{ //caso per il login
+				qDebug() << "Entrato nel case 0";
+
 				QString username, password;
 				in >> username >> password;
 				bool success = login(username, password, sender);
@@ -122,6 +125,8 @@ void Server::onReadyRead()
 			}
 			case 1:
 			{
+				qDebug() << "Entrato nel case 1";
+
 				//caso per la registrazione
 				QString username, password, nickname;
 				in >> username >> password >> nickname;
@@ -155,6 +160,8 @@ void Server::onReadyRead()
 			}*/
 			case 3:
 			{
+				qDebug() << "Entrato nel case 3";
+
 				int insert, numSym;
 				QString filename;
 				QString creatore;
@@ -200,6 +207,8 @@ void Server::onReadyRead()
 			}
 			case 4:
 			{ //richiesta di un file da parte di un client
+				qDebug() << "Entrato nel case 4";
+
 				QString filename;
 				int siteIdTmp;
 				QString creatore;
@@ -210,9 +219,12 @@ void Server::onReadyRead()
 				{
 					QByteArray buf;
 					QDataStream out(&buf, QIODevice::WriteOnly);
+					QByteArray bufOut;
+					QDataStream out_stream(&bufOut, QIODevice::WriteOnly);
 
 					out << 150;
-					sender->write(buf);
+					out_stream << buf;
+					sender->write(bufOut);
 					break;
 				}
 
@@ -226,6 +238,8 @@ void Server::onReadyRead()
 			}
 			case 5:
 			{
+				qDebug() << "Entrato nel case 5";
+
 				//segnalazione di disconnessione da un file
 				QString filename;
 				QString creatore;
@@ -248,11 +262,15 @@ void Server::onReadyRead()
 			}
 			case 6:
 			{
+				qDebug() << "Entrato nel case 6";
+
 				sendFiles(sender);
 				break;
 			}
 			case 7:
 			{
+				qDebug() << "Entrato nel case 7";
+
 				/*
 				Implemento la share ownership
 			*/
@@ -302,6 +320,8 @@ void Server::onReadyRead()
 
 			case 9:
 			{
+				qDebug() << "Entrato nel case 9";
+
 				// Eliminare un file
 				QString filename;
 				QString username;
@@ -311,6 +331,8 @@ void Server::onReadyRead()
 			}
 			case 10:
 			{
+				qDebug() << "Entrato nel case 10";
+
 				// Cambio nickname/immagine profilo
 				int op;
 				in >> op;
@@ -331,6 +353,8 @@ void Server::onReadyRead()
 			}
 			case 11:
 			{
+				qDebug() << "Entrato nel case 11";
+
 				int index;
 				in >> index;
 				cursorPositionChanged(index, myClient.value()->getFilename(), sender);
@@ -405,6 +429,8 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 				sendClient(connections[socket]->getSiteId(), connections[socket]->getNickname(), conn, true);
 			}
 		}
+		out_stream << buf;
+		socket->write(bufOut);
 	}
 	else
 	{
@@ -423,8 +449,6 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 		files.find(filePath).value()->addConnection(socket);
 		connections[socket]->setFilename(filePath);
 	}
-	out_stream << buf;
-	socket->write(bufOut);
 }
 
 void Server::sendSymbol(std::shared_ptr<class Symbol> symbol, bool insert, QTcpSocket* socket, QDataStream *out)
