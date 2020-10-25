@@ -593,10 +593,47 @@ void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int
 }*/
 
 void Server::changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender) {
+
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	QByteArray bufOut;
+	QDataStream out_stream(&bufOut, QIODevice::WriteOnly);
+	bool nick = false;
+	for (User* u : subs.values())
+	{
+		if (u->getNickname() == nickname)
+		{
+			nick = true;
+			break;
+		}
+	}
+	if (nick)
+	{
+		out << 10 << 2 << subs[username]->getNickname(); // Nickname già esistente
+		out_stream << buf;
+		sender->write(bufOut);
+		return;
+	}
+	for (QTcpSocket* sock : connections.keys())
+	{
+		for (QString file : filesForUser[username])
+		{
+			if (fileOwnersMap[file][0] == username && filesForUser[connections[sock]->getUsername()].contains(file))
+			{
+				out << 10 << 1 << subs[username]->getNickname() << nickname;
+				out_stream << buf;
+				sock->write(bufOut);
+				break;
+			}
+		}
+	}
+
 	subs[username]->setNickname(nickname);
 	subs[username]->setImage(image);
 	rewriteUsersFile();
-
+	if (connections.contains(sender)) {
+		connections[sender]->setNickname(nickname);
+	}
 	QDir d = QDir::current();
 	if (!d.exists(username + "/image")) {
 		d.mkdir(username + "/image");
@@ -605,8 +642,50 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 }
 
 void Server::changeProfile(QString username, QString nickname, QTcpSocket* sender) {
+
+	QByteArray buf;
+	QDataStream out(&buf, QIODevice::WriteOnly);
+	QByteArray bufOut;
+	QDataStream out_stream(&bufOut, QIODevice::WriteOnly);
+	bool nick = false;
+	for (User* u : subs.values())
+	{
+		if (u->getNickname() == nickname)
+		{
+			nick = true;
+			break;
+		}
+	}
+	if (nick)
+	{
+		QByteArray buf;
+		QDataStream out(&buf, QIODevice::WriteOnly);
+		out << 10 << 2 << subs[username]->getNickname(); // Nickname già esistente
+		sender->write(buf);
+		return;
+	}
+	for (QTcpSocket* sock : connections.keys())
+	{
+		for (QString file : filesForUser[username])
+		{
+			if (fileOwnersMap[file][0] == username && filesForUser[connections[sock]->getUsername()].contains(file))
+			{
+				QByteArray buf;
+				QDataStream out(&buf, QIODevice::WriteOnly);
+				out << 10 << 1 << subs[username]->getNickname() << nickname;
+				sock->write(buf);
+				break;
+			}
+		}
+	}
+
 	subs[username]->setNickname(nickname);
 	rewriteUsersFile();
+
+	if (connections.contains(sender)) {
+		connections[sender]->setNickname(nickname);
+	}
+
 }
 
 void Server::registration(QString username, QString password, QString nickname, QTcpSocket* sender)
