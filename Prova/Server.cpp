@@ -658,10 +658,9 @@ void Server::changeProfile(QString username, QString nickname, QTcpSocket* sende
 	}
 	if (nick)
 	{
-		QByteArray buf;
-		QDataStream out(&buf, QIODevice::WriteOnly);
 		out << 10 << 2 << subs[username]->getNickname(); // Nickname già esistente
-		sender->write(buf);
+		out_stream << buf;
+		sender->write(bufOut);
 		return;
 	}
 	for (QTcpSocket* sock : connections.keys())
@@ -670,10 +669,9 @@ void Server::changeProfile(QString username, QString nickname, QTcpSocket* sende
 		{
 			if (fileOwnersMap[file][0] == username && filesForUser[connections[sock]->getUsername()].contains(file))
 			{
-				QByteArray buf;
-				QDataStream out(&buf, QIODevice::WriteOnly);
 				out << 10 << 1 << subs[username]->getNickname() << nickname;
-				sock->write(buf);
+				out_stream << buf;
+				sock->write(bufOut);
 				break;
 			}
 		}
