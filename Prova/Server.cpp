@@ -182,7 +182,9 @@ void Server::onReadyRead()
 							in >> siteId >> counter >> pos;
 							newSym = insertSymbol(filePath, sender, &in, siteId, counter, pos);
 							//newSym = files[filePath]->getSymbol(siteId, counter);
-							symbolsToSend.push_back(newSym);
+							if (newSym != nullptr) {
+								symbolsToSend.push_back(newSym);
+							}
 						}
 					}
 					else
@@ -191,7 +193,9 @@ void Server::onReadyRead()
 							in >> siteId >> counter >> pos;
 							//newSym = files[filePath]->getSymbol(siteId, counter);
 							newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
-							symbolsToSend.push_back(newSym);
+							if (newSym != nullptr) {
+								symbolsToSend.push_back(newSym);
+							}
 						}
 					}
 					int siteIdSender = myClient.value()->getSiteId();
@@ -529,18 +533,24 @@ std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sende
 	}
 }
 
-std::shared_ptr<Symbol> Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
+std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
 {
-	auto tmp = connections.find(sender);
-	auto tmpFile = files.find(filename);
-	//controlli                       in questo controllo si sta guardando se chi sta rimuovendo il simbolo è lo stesso che lo elimina: non serve.
-	if (tmp != connections.end() && /*tmp.value()->getSiteId() == siteId &&*/ tmp.value()->getFilename() == filename && tmpFile != files.end())
+	//auto tmp = connections.find(sender);
+	//auto tmpFile = files.find(filename);
+	std::shared_ptr<Symbol> sym;
+	//controlli                      
+	if (connections.contains(sender) && files.contains(filepath))
 	{
-		//std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
-		std::shared_ptr<Symbol> sym = tmpFile.value()->removeSymbol(siteId, counter);
-		writeLog(filename, sym, false);
-		return sym;
+		UserConn* user = connections[sender];
+		TextFile* file = files[filepath];
+		if (user->getFilename() == filepath) {
+			//std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
+			sym = file->removeSymbol(siteId, counter, pos);
+			writeLog(filepath, sym, false);
+			return sym;
+		}
 	}
+	return nullptr;
 }
 
 void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender)
@@ -1438,7 +1448,7 @@ bool Server::readFromLog(TextFile* f)
 			if (insert == 1)
 				f->addSymbol(std::make_shared<Symbol>(sym));
 			else
-				f->removeSymbol(siteId, counter);
+				f->removeSymbol(siteId, counter, vect);
 		}
 		fin.close();
 		//saveFile(f); //il log viene rimosso nell saveFile
