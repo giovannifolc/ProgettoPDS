@@ -175,12 +175,13 @@ void Server::onReadyRead()
 
 				std::shared_ptr<Symbol> newSym;
 				if (files.contains(filePath)) {
+					auto start = std::chrono::high_resolution_clock::now();
 					if (insert == 1)
 					{
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
-							insertSymbol(filePath, sender, &in, siteId, counter, pos);
-							newSym = files[filePath]->getSymbol(siteId, counter);
+							newSym = insertSymbol(filePath, sender, &in, siteId, counter, pos);
+							//newSym = files[filePath]->getSymbol(siteId, counter);
 							symbolsToSend.push_back(newSym);
 						}
 					}
@@ -188,13 +189,17 @@ void Server::onReadyRead()
 					{
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
-							newSym = files[filePath]->getSymbol(siteId, counter);
-							deleteSymbol(filePath, siteId, counter, pos, sender);
+							//newSym = files[filePath]->getSymbol(siteId, counter);
+							newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
 							symbolsToSend.push_back(newSym);
 						}
 					}
 					int siteIdSender = myClient.value()->getSiteId();
+					auto finish = std::chrono::high_resolution_clock::now();
+					std::chrono::duration<double> elapsed = finish - start;
+					std::cout << "Elapsed time: " << elapsed.count() << " s\n";
 					//mando in out
+					qDebug() << "Mando in out";
 					for (QTcpSocket* sock : connections.keys())
 					{
 						if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
@@ -443,6 +448,20 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 			addNewFile(filePath, connections[socket]->getUsername());
 		}
 	}
+
+	//Controllo se il file era già aperto da qualcuno, nel caso in cui sia il primo ad aprirlo, apro il file di log
+	bool open = true;
+	for (auto client : connections)
+	{
+		if (client->getFilename() == filename)
+		{
+			open = false;
+		}
+	}
+	if (open) {
+		files[filePath]->openLogFile();
+	}
+
 	//setto il filename dentro la UserConn corrispondente e dentro il campo connection di un file aggiungo la connessione attuale
 	if (connections.contains(socket) && !flag)
 	{
@@ -489,7 +508,7 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool i
 	socket->flush();
 }
 
-void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
+std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filename);
@@ -506,6 +525,21 @@ void Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in,
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		tmpFile.value()->addSymbol(symbol);
 		writeLog(filename, symbol, true);
+		return symbol;
+	}
+}
+
+std::shared_ptr<Symbol> Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
+{
+	auto tmp = connections.find(sender);
+	auto tmpFile = files.find(filename);
+	//controlli                       in questo controllo si sta guardando se chi sta rimuovendo il simbolo è lo stesso che lo elimina: non serve.
+	if (tmp != connections.end() && /*tmp.value()->getSiteId() == siteId &&*/ tmp.value()->getFilename() == filename && tmpFile != files.end())
+	{
+		//std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
+		std::shared_ptr<Symbol> sym = tmpFile.value()->removeSymbol(siteId, counter);
+		writeLog(filename, sym, false);
+		return sym;
 	}
 }
 
@@ -538,19 +572,6 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	out_stream << buf;
 	socket->write(bufOut);
 	socket->flush();
-}
-
-void Server::deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
-{
-	auto tmp = connections.find(sender);
-	auto tmpFile = files.find(filename);
-	//controlli                       in questo controllo si sta guardando se chi sta rimuovendo il simbolo è lo stesso che lo elimina: non serve.
-	if (tmp != connections.end() && /*tmp.value()->getSiteId() == siteId &&*/ tmp.value()->getFilename() == filename && tmpFile != files.end())
-	{
-		std::shared_ptr<Symbol> sym = tmpFile.value()->getSymbol(siteId, counter);
-		tmpFile.value()->removeSymbol(sym);
-		writeLog(filename, sym, false);
-	}
 }
 
 /*void Server::changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver)
@@ -1142,7 +1163,7 @@ void Server::eraseFile(QString filename, QString username, QTcpSocket* sender)
 	// Elimino il file da files
 	files.remove(filePath);
 
-	/// RIMUOVERE IL FILE DALLA CARTELLA
+	/// RIMUOVO IL FILE DALLA CARTELLA
 	QFile f(filePath);
 	f.remove();
 }
@@ -1308,7 +1329,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 	QString filename = filePath.split("/")[1];
 	QString userFolder = filePath.split("/")[0];
 
-	QString fileLogName = filename + "_log.txt";
+	QString fileLogName = filename.split(".")[0] + "_log.txt";
 
 	QDir d = QDir::current();
 
@@ -1324,11 +1345,13 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		*/
 	}
 
-	QFile file(d.filePath(filePath));
+	//QFile file(d.filePath(userFolder + "/" + fileLogName));
 
-	if (file.open(QIODevice::WriteOnly | QIODevice::Append))
-	{
-		QTextStream stream(&file);
+	//if (file.open(QIODevice::WriteOnly | QIODevice::Append))
+	//{
+
+		QTextStream stream(files[filePath]->getLogFile());
+		//QTextStream stream(&file);
 
 		if (insert)
 		{
@@ -1370,8 +1393,9 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 			stream << 0 << " ";
 		}
 		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
-	}
-	file.close();
+		
+		//file.close();
+	//}
 }
 
 bool Server::readFromLog(TextFile* f)
@@ -1382,7 +1406,7 @@ bool Server::readFromLog(TextFile* f)
 
 	*/
 
-	QString fileLogName = f->getFilename() + "_log.txt";
+	QString fileLogName = f->getFilePath().split("/")[0] + "/" + f->getFilePath().split("/")[1].split(".")[0] + "_log.txt";
 	QFile fin(fileLogName);
 	if (fin.open(QIODevice::ReadOnly))
 	{
@@ -1414,7 +1438,7 @@ bool Server::readFromLog(TextFile* f)
 			if (insert == 1)
 				f->addSymbol(std::make_shared<Symbol>(sym));
 			else
-				f->removeSymbol(std::make_shared<Symbol>(sym));
+				f->removeSymbol(siteId, counter);
 		}
 		fin.close();
 		//saveFile(f); //il log viene rimosso nell saveFile
@@ -1427,8 +1451,7 @@ bool Server::readFromLog(TextFile* f)
 }
 void Server::deleteLog(TextFile* f)
 {
-	QString fileLogName = f->getFilename() + "_log.txt";
-	remove(fileLogName.toStdString().c_str());
+	f->closeLogFile();
 }
 
 QString Server::genRandom()

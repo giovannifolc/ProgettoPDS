@@ -15,6 +15,8 @@
 #include "TextFile.h"
 #include "Symbol.h"
 
+#include <chrono>
+
 class Server :
 	public QObject
 {
@@ -35,11 +37,11 @@ private slots:
 	void registration(QString username, QString password, QString nickname, QTcpSocket* sender);
 	bool login(QString username, QString password, QTcpSocket* sender);
 	void sendFiles(QTcpSocket* receiver);
-	void insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
+	std::shared_ptr<Symbol> insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos);
 	void sendSymbol(std::shared_ptr<Symbol> symbol, bool insert, QTcpSocket* socket, QDataStream *out);
 	void sendFile(QString filename, QString filePath, QTcpSocket* socket, int siteId);
 	void sendClient(int siteId, QString nickname, QTcpSocket* socket, bool insert);
-	void deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
+	std::shared_ptr<Symbol> deleteSymbol(QString filename, int siteId, int counter, QVector<int> pos, QTcpSocket* sender);
 
 private:
 	QTcpServer* server;

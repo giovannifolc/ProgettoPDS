@@ -56,18 +56,20 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 	symbols.insert(index, newSymbol);
 }
 
-int TextFile::removeSymbol(std::shared_ptr<Symbol> symbol) {
+std::shared_ptr<Symbol> TextFile::removeSymbol(int siteId, int counter) {
 	int index = -1;
 	for (int i = 0; i < symbols.size(); i++) {
-		if (symbols[i]->getSiteId() == symbol->getSiteId() && symbols[i]->getCounter() == symbol->getCounter()) {
+		if (symbols[i]->getSiteId() == siteId && symbols[i]->getCounter() == counter) {
 			index = i;
 			break;
 		}
 	}
 	if (index != -1) {
+		std::shared_ptr<Symbol> sym = symbols[index];
 		symbols.erase(symbols.begin() + index);
+		return sym;
 	}
-	return index;
+	
 }
 
 std::shared_ptr<Symbol> TextFile::getSymbol(int siteId, int counter) {
@@ -112,3 +114,19 @@ void TextFile::pushBackSymbol(std::shared_ptr<Symbol> sym) {
 	symbols.push_back(sym);
 } 
 
+QFile* TextFile::getLogFile() {
+	return &this->logFile;
+}
+
+void TextFile::openLogFile() {
+	
+	QDir d = QDir::current();
+	this->logFile.setFileName(d.filePath(filePath.split("/")[0] + "/" + filePath.split("/")[1].split(".")[0] + "_log.txt"));
+
+	if (logFile.open(QIODevice::WriteOnly | QIODevice::Append)){}
+}
+
+void TextFile::closeLogFile() {
+	logFile.close();
+	logFile.remove();
+}
