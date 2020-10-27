@@ -31,5 +31,7 @@ private:
 	QVector<std::shared_ptr<Symbol>> symbols;
 	QVector<QTcpSocket*> connections;
 	QFile logFile;
+
+	int searchIndexForNewPos(QVector<int> position);
 };
 

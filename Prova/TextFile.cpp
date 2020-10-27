@@ -96,17 +96,31 @@ void TextFile::addSymbol(QVector<std::shared_ptr<Symbol>> newSymbols) {
 				}
 			}
 			if (!successivo) {
-				for (int j = k - count, c = 0; j < k; j++, c++) {
+				
+				QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
+				QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size()-index);
+				QVector<std::shared_ptr<Symbol>> added = newSymbols.mid(k - count, count);
+				symbols = inizio;
+				symbols.append(added);
+				symbols.append(fine);
+				/*for (int j = k - count, c = 0; j < k; j++, c++) {
 					symbols.insert(index + c, newSymbols[j]);
-				}
+				}*/
 				count = 0;
 				k--;
 			}
 		}
 	}
-	for (int j = newSymbols.size() - count, c = 0; j < newSymbols.size(); j++, c++) {
+	
+	QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
+	QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
+	QVector<std::shared_ptr<Symbol>> added = newSymbols.mid(newSymbols.size() - count, count);
+	symbols = inizio;
+	symbols.append(added);
+	symbols.append(fine);
+	/*for (int j = newSymbols.size() - count, c = 0; j < newSymbols.size(); j++, c++) {
 		symbols.insert(index + c, newSymbols[j]);
-	}
+	}*/
 }
 
 /*void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
@@ -300,4 +314,57 @@ void TextFile::openLogFile() {
 void TextFile::closeLogFile() {
 	logFile.close();
 	logFile.remove();
+}
+
+int TextFile::searchIndexForNewPos(QVector<int> position) {
+	int size = symbols.size();
+	int index;
+
+
+	if (size == 0) {
+		index = 0;
+	}
+
+	if (size == 1) {
+		if (symbols[0]->getPosition() > position) {
+			index = 0;
+		}
+		else {
+			index = 1;
+		}
+	}
+
+	if (size > 1) {
+		int flag = 0;
+		if (position < symbols[0]->getPosition()) {
+			index = 0;
+			flag = 1;
+		}
+		else if (position > symbols[size - 1]->getPosition()) {
+			index = size;
+			flag = 1;
+		}
+		int i;
+		int dx, sx;
+		dx = size - 1;
+		sx = 0;
+
+		while (flag == 0)
+		{
+			i = (dx + sx) / 2;
+			if (symbols[i - 1]->getPosition() < position && position < symbols[i]->getPosition()) {
+				flag = 1;
+				index = i;
+			}
+			else {
+				if (symbols[i - 1]->getPosition() > position) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
+					dx = i;
+				}
+				else {
+					sx = i;
+				}
+			}
+		}
+	}
+	return index;
 }

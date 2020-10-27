@@ -1364,6 +1364,8 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		QTextStream stream(files[filePath]->getLogFile());
 		//QTextStream stream(&file);
 
+		// ABBIAMO AGGIUNTO L'ENDLINE QUI PERCHè ALLA FINE DAVA PROBLEMI.
+		stream << endl;
 		if (insert)
 		{
 			stream << 1;
@@ -1403,7 +1405,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		{
 			stream << 0 << " ";
 		}
-		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
+		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString());
 		
 		//file.close();
 	//}
