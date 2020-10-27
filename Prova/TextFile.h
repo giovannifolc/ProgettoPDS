@@ -13,7 +13,8 @@ public:
 	QString getFilename();
 	QString getFilePath();
 	QVector<std::shared_ptr<Symbol>> getSymbols();
-	void addSymbol(std::shared_ptr<Symbol> symbol);
+	//void addSymbol(std::shared_ptr<Symbol> symbol);
+	void addSymbol(QVector<std::shared_ptr<Symbol>> symbol);
 	std::shared_ptr<Symbol> removeSymbol(int siteId, int counter, QVector<int> pos);
 	std::shared_ptr<Symbol> getSymbol(int siteId, int counter);
 	QVector<QTcpSocket*> getConnections();

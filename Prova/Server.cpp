@@ -186,6 +186,7 @@ void Server::onReadyRead()
 								symbolsToSend.push_back(newSym);
 							}
 						}
+						files.find(filePath).value()->addSymbol(symbolsToSend);
 					}
 					else
 					{
@@ -527,7 +528,7 @@ std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sende
 		*in >> value >> bold >> italic >> underlined >> alignment >> textSize >> color >> font;
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
-		tmpFile.value()->addSymbol(symbol);
+		//tmpFile.value()->addSymbol(symbol);
 		writeLog(filename, symbol, true);
 		return symbol;
 	}
@@ -1445,8 +1446,12 @@ bool Server::readFromLog(TextFile* f)
 			color.setNamedColor(colorName);
 			Symbol sym(vect, counter, siteId, value, bold == 1, italic == 1, underlined == 1, alignment, textSize, color, font);
 
-			if (insert == 1)
-				f->addSymbol(std::make_shared<Symbol>(sym));
+			if (insert == 1) {
+				QVector<std::shared_ptr<Symbol>> syms;
+				syms.insert(0, std::make_shared<Symbol>(sym));
+				f->addSymbol(syms);
+				//f->addSymbol(std::make_shared<Symbol>(sym));
+			}		
 			else
 				f->removeSymbol(siteId, counter, vect);
 		}
