@@ -12,7 +12,7 @@ public:
     QTcpSocket* getSocket();
     void setFilename(QString filename);
 private:
-    QTcpSocket* socket;
-    QString filename;
+    QTcpSocket* socket;         //socket di connessione dell'utente
+    QString filename;           //nome file associato alla connessione, se viene aperto un file
 };
 

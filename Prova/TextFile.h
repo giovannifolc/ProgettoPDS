@@ -26,11 +26,11 @@ public:
 	void closeLogFile();
 
 private:
-	QString filename;
-	QString filePath;
-	QVector<std::shared_ptr<Symbol>> symbols;
-	QVector<QTcpSocket*> connections;
-	QFile logFile;
+	QString filename;							//nome del file
+	QString filePath;							//path del file (utente/nomeFile)
+	QVector<std::shared_ptr<Symbol>> symbols;	//vettore di simboli del file
+	QVector<QTcpSocket*> connections;			//vettore di socket (utenti) connessi al file
+	QFile logFile;								//file di log relativo
 
 	int searchIndexForNewPos(QVector<int> position);
 };

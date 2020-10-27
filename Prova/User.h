@@ -21,10 +21,10 @@ public:
 	void setImage(QImage image);
 	bool getHaveImage();
 private:
-	QString username;
-	QString password;
-	QString nickname;
-	QImage image;
-	bool haveImage;
-	int siteId;
+	QString username;			//identificativo univoco dell'utente
+	QString password;			//password dell'utente
+	QString nickname;			//nickname dell'utente
+	QImage image;				//immagine di profilo dell'utente
+	bool haveImage;				//flag che indica se l'utente possiede una immagine profilo
+	int siteId;					//identificativo univoco dell'utente (non scelto da quest'ultimo però, assegnato dal server)
 };	
