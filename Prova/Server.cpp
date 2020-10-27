@@ -172,7 +172,6 @@ void Server::onReadyRead()
 				filePath = creatore + "/" + filename;
 				int siteId, counter;
 				QVector<int> pos;
-
 				std::shared_ptr<Symbol> newSym;
 				if (files.contains(filePath)) {
 					auto start = std::chrono::high_resolution_clock::now();
@@ -181,7 +180,6 @@ void Server::onReadyRead()
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
 							newSym = insertSymbol(filePath, sender, &in, siteId, counter, pos);
-							//newSym = files[filePath]->getSymbol(siteId, counter);
 							if (newSym != nullptr) {
 								symbolsToSend.push_back(newSym);
 							}
@@ -190,14 +188,19 @@ void Server::onReadyRead()
 					}
 					else
 					{
+						QVector<int> siteIds, counters;
+						QVector<QVector<int>> poses;
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
-							//newSym = files[filePath]->getSymbol(siteId, counter);
-							newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
+							siteIds.push_back(siteId);
+							counters.push_back(counter);
+							poses.push_back(pos);
+							/*newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
 							if (newSym != nullptr) {
 								symbolsToSend.push_back(newSym);
-							}
+							}*/
 						}
+						symbolsToSend = deleteSymbol(filePath, siteIds, counters, poses, sender);
 					}
 					int siteIdSender = myClient.value()->getSiteId();
 					auto finish = std::chrono::high_resolution_clock::now();
@@ -212,6 +215,7 @@ void Server::onReadyRead()
 							sendSymbols(symbolsToSend.size(), symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 						}
 					}
+					qDebug() << "Finito";
 				}
 				break;
 			}
@@ -513,12 +517,12 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool i
 	socket->flush();
 }
 
-std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
+std::shared_ptr<Symbol> Server::insertSymbol(QString filepath, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
-	auto tmpFile = files.find(filename);
+	auto tmpFile = files.find(filepath);
 	//controlli
-	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end())
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filepath && tmpFile != files.end())
 	{
 		QChar value;
 		bool bold, italic, underlined;
@@ -529,8 +533,26 @@ std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sende
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		//tmpFile.value()->addSymbol(symbol);
-		writeLog(filename, symbol, true);
+		writeLog(filepath, symbol, true);
 		return symbol;
+	}
+}
+
+QVector<std::shared_ptr<Symbol>> Server::deleteSymbol(QString filepath, QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> poses, QTcpSocket* sender)
+{
+	QVector<std::shared_ptr<Symbol>> sym;
+	//controlli                      
+	if (connections.contains(sender) && files.contains(filepath))
+	{
+		UserConn* user = connections[sender];
+		TextFile* file = files[filepath];
+		if (user->getFilename() == filepath) {
+			sym = file->removeSymbol(siteIds, counters, poses);
+			for (std::shared_ptr<Symbol> s : sym) {
+				writeLog(filepath, s, false);
+			}
+			return sym;
+		}
 	}
 }
 
@@ -1363,7 +1385,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 
 		QTextStream stream(files[filePath]->getLogFile());
 		//QTextStream stream(&file);
-
+		stream << endl;
 		if (insert)
 		{
 			stream << 1;
@@ -1403,7 +1425,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 		{
 			stream << 0 << " ";
 		}
-		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString()) << endl;
+		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString());
 		
 		//file.close();
 	//}
@@ -1447,13 +1469,11 @@ bool Server::readFromLog(TextFile* f)
 			Symbol sym(vect, counter, siteId, value, bold == 1, italic == 1, underlined == 1, alignment, textSize, color, font);
 
 			if (insert == 1) {
-				QVector<std::shared_ptr<Symbol>> syms;
-				syms.insert(0, std::make_shared<Symbol>(sym));
-				f->addSymbol(syms);
-				//f->addSymbol(std::make_shared<Symbol>(sym));
+				f->addSymbol(std::make_shared<Symbol>(sym));
 			}		
-			else
+			else if(insert == 0) {
 				f->removeSymbol(siteId, counter, vect);
+			}				
 		}
 		fin.close();
 		//saveFile(f); //il log viene rimosso nell saveFile
