@@ -201,7 +201,7 @@ void Server::onReadyRead()
 					qDebug() << "Mando in out";
 					for (QTcpSocket* sock : connections.keys())
 					{
-						if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender)
+						if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender && connections[sock]->getFilename() == filePath)
 						{
 							sendSymbols(symbolsToSend.size(), symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 						}
@@ -1559,7 +1559,7 @@ void Server::cursorPositionChanged(int index, QString filename, QTcpSocket* send
 			int siteIdSender = connections[sender]->getSiteId();
 			for (auto reciver : tf->getConnections())
 			{
-				if (reciver != sender)
+				if (reciver != sender && connections[reciver]->getFilename() == filename)
 				{
 					QByteArray buf;
 					QDataStream out(&buf, QIODevice::WriteOnly);
