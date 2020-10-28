@@ -29,7 +29,7 @@ QVector<std::shared_ptr<Symbol>> TextFile::getSymbols()
 	return symbols;
 }
 
-void TextFile::addSymbol(QVector<std::shared_ptr<Symbol>> newSymbols) {
+void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 
 	int index = symbols.size();
 	int count = 0;
@@ -60,6 +60,10 @@ void TextFile::addSymbol(QVector<std::shared_ptr<Symbol>> newSymbols) {
 				}
 				else if (newSymbols[k]->getPosition() > symbols[size - 1]->getPosition()) {
 					index = size;
+					flag = 1;
+				}
+				else if (newSymbols[k]->getPosition() > symbols[size - 2]->getPosition() && newSymbols[k]->getPosition() < symbols[size - 1]->getPosition()) {
+					index = size - 1;
 					flag = 1;
 				}
 				int i;
@@ -103,9 +107,6 @@ void TextFile::addSymbol(QVector<std::shared_ptr<Symbol>> newSymbols) {
 				symbols = inizio;
 				symbols.append(added);
 				symbols.append(fine);
-				/*for (int j = k - count, c = 0; j < k; j++, c++) {
-					symbols.insert(index + c, newSymbols[j]);
-				}*/
 				count = 0;
 				k--;
 			}
@@ -118,9 +119,6 @@ void TextFile::addSymbol(QVector<std::shared_ptr<Symbol>> newSymbols) {
 	symbols = inizio;
 	symbols.append(added);
 	symbols.append(fine);
-	/*for (int j = newSymbols.size() - count, c = 0; j < newSymbols.size(); j++, c++) {
-		symbols.insert(index + c, newSymbols[j]);
-	}*/
 }
 
 void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
@@ -150,6 +148,10 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 			index = size;
 			flag = 1;
 		}
+		else if (newSymbol->getPosition() > symbols[size - 2]->getPosition() && newSymbol->getPosition() < symbols[size - 1]->getPosition()) {
+			index = size - 1;
+			flag = 1;
+		}
 		int i;
 		int dx, sx;
 		dx = size -1;
@@ -171,33 +173,15 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 				}
 			}
 		}
-		/*for (int i = 1; i < symbols.size(); i++) {
-			if (symbols[i - 1]->getPosition() < newSymbol->getPosition() && newSymbol->getPosition() < symbols[i]->getPosition()) {
-				index = i;
-				break;
-			}
-		} */
 	}
-	symbols.insert(index, newSymbol);
+	QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
+	QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
+	symbols = inizio;
+	symbols.append(newSymbol);
+	symbols.append(fine);
 }
 
-/*std::shared_ptr<Symbol> TextFile::removeSymbol(int siteId, int counter, QVector<int> pos) {
-	int index = -1;
-	for (int i = 0; i < symbols.size(); i++) {
-		if (symbols[i]->getSiteId() == siteId && symbols[i]->getCounter() == counter) {
-			index = i;
-			break;
-		}
-	}
-	if (index != -1) {
-		std::shared_ptr<Symbol> sym = symbols[index];
-		symbols.erase(symbols.begin() + index);
-		return sym;
-	}
-	
-}*/
-
-QVector<std::shared_ptr<Symbol>> TextFile::removeSymbol(QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> positions) {
+QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> positions) {
 	
 	QVector<std::shared_ptr<Symbol>> sym;
 	int index = this->symbols.size();

@@ -159,9 +159,7 @@ void Server::onReadyRead()
 				break;
 			}*/
 			case 3:
-			{
-				qDebug() << "Entrato nel case 3";
-
+			{			
 				int insert, numSym;
 				QString filename;
 				QString creatore;
@@ -177,6 +175,7 @@ void Server::onReadyRead()
 					auto start = std::chrono::high_resolution_clock::now();
 					if (insert == 1)
 					{
+						qDebug() << "Entrato nel case 3: Insert";
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
 							newSym = insertSymbol(filePath, sender, &in, siteId, counter, pos);
@@ -184,10 +183,11 @@ void Server::onReadyRead()
 								symbolsToSend.push_back(newSym);
 							}
 						}
-						files.find(filePath).value()->addSymbol(symbolsToSend);
+						files.find(filePath).value()->addSymbols(symbolsToSend);
 					}
 					else
 					{
+						qDebug() << "Entrato nel case 3: Remove";
 						QVector<int> siteIds, counters;
 						QVector<QVector<int>> poses;
 						for (int i = 0; i < numSym; i++) {
@@ -200,7 +200,7 @@ void Server::onReadyRead()
 								symbolsToSend.push_back(newSym);
 							}*/
 						}
-						symbolsToSend = deleteSymbol(filePath, siteIds, counters, poses, sender);
+						symbolsToSend = deleteSymbols(filePath, siteIds, counters, poses, sender);
 					}
 					int siteIdSender = myClient.value()->getSiteId();
 					auto finish = std::chrono::high_resolution_clock::now();
@@ -538,7 +538,7 @@ std::shared_ptr<Symbol> Server::insertSymbol(QString filepath, QTcpSocket* sende
 	}
 }
 
-QVector<std::shared_ptr<Symbol>> Server::deleteSymbol(QString filepath, QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> poses, QTcpSocket* sender)
+QVector<std::shared_ptr<Symbol>> Server::deleteSymbols(QString filepath, QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> poses, QTcpSocket* sender)
 {
 	QVector<std::shared_ptr<Symbol>> sym;
 	//controlli                      
@@ -547,7 +547,7 @@ QVector<std::shared_ptr<Symbol>> Server::deleteSymbol(QString filepath, QVector<
 		UserConn* user = connections[sender];
 		TextFile* file = files[filepath];
 		if (user->getFilename() == filepath) {
-			sym = file->removeSymbol(siteIds, counters, poses);
+			sym = file->removeSymbols(siteIds, counters, poses);
 			for (std::shared_ptr<Symbol> s : sym) {
 				writeLog(filepath, s, false);
 			}
@@ -556,7 +556,7 @@ QVector<std::shared_ptr<Symbol>> Server::deleteSymbol(QString filepath, QVector<
 	}
 }
 
-std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
+/*std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
 {
 	//auto tmp = connections.find(sender);
 	//auto tmpFile = files.find(filename);
@@ -574,7 +574,7 @@ std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int c
 		}
 	}
 	return nullptr;
-}
+}*/
 
 void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender)
 {

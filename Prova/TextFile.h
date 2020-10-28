@@ -14,9 +14,9 @@ public:
 	QString getFilePath();
 	QVector<std::shared_ptr<Symbol>> getSymbols();
 	void addSymbol(std::shared_ptr<Symbol> symbol);	// add singolo carattere
-	void addSymbol(QVector<std::shared_ptr<Symbol>> symbol);	// add a blocco
+	void addSymbols(QVector<std::shared_ptr<Symbol>> symbol);	// add a blocco
 	std::shared_ptr<Symbol> removeSymbol(int siteId, int counter, QVector<int> pos); // remove singolo carattere
-	QVector<std::shared_ptr<Symbol>> removeSymbol(QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> positions); // remove a blocco
+	QVector<std::shared_ptr<Symbol>> removeSymbols(QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> positions); // remove a blocco
 	std::shared_ptr<Symbol> getSymbol(int siteId, int counter);
 	QVector<QTcpSocket*> getConnections();
 	void addConnection(QTcpSocket* connection);
