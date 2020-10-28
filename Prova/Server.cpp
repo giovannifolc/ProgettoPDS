@@ -117,7 +117,7 @@ void Server::onReadyRead()
 			{
 			//caso per il login
 			case 0:
-			{ 
+			{
 				qDebug() << "Entrato nel case 0";
 
 				QString username, password;
@@ -155,7 +155,6 @@ void Server::onReadyRead()
 			//caso per  l'inserimento o cancellazione di simboli da parte del client
 			case 3:
 			{
-				qDebug() << "Entrato nel case 3";
 				int insert, numSym;
 				QString filename;
 				QString creatore;
@@ -166,32 +165,37 @@ void Server::onReadyRead()
 				filePath = creatore + "/" + filename;
 				int siteId, counter;
 				QVector<int> pos;
-
 				std::shared_ptr<Symbol> newSym;
 				if (files.contains(filePath)) {
 					auto start = std::chrono::high_resolution_clock::now();
 					if (insert == 1)
 					{
+						qDebug() << "Entrato nel case 3: Insert";
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
 							newSym = insertSymbol(filePath, sender, &in, siteId, counter, pos);
-							//newSym = files[filePath]->getSymbol(siteId, counter);
 							if (newSym != nullptr) {
 								symbolsToSend.push_back(newSym);
 							}
 						}
-						files.find(filePath).value()->addSymbol(symbolsToSend);
+						files.find(filePath).value()->addSymbols(symbolsToSend);
 					}
 					else
 					{
+						qDebug() << "Entrato nel case 3: Remove";
+						QVector<int> siteIds, counters;
+						QVector<QVector<int>> poses;
 						for (int i = 0; i < numSym; i++) {
 							in >> siteId >> counter >> pos;
-							//newSym = files[filePath]->getSymbol(siteId, counter);
-							newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
+							siteIds.push_back(siteId);
+							counters.push_back(counter);
+							poses.push_back(pos);
+							/*newSym = deleteSymbol(filePath, siteId, counter, pos, sender);
 							if (newSym != nullptr) {
 								symbolsToSend.push_back(newSym);
-							}
+							}*/
 						}
+						symbolsToSend = deleteSymbols(filePath, siteIds, counters, poses, sender);
 					}
 					int siteIdSender = myClient.value()->getSiteId();
 					auto finish = std::chrono::high_resolution_clock::now();
@@ -206,12 +210,13 @@ void Server::onReadyRead()
 							sendSymbols(symbolsToSend.size(), symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
 						}
 					}
+					qDebug() << "Finito";
 				}
 				break;
 			}
 			//caso per gestirerichiesta di un file da parte di un client
 			case 4:
-			{ 
+			{
 				qDebug() << "Entrato nel case 4";
 				QString filename;
 				int siteIdTmp;
@@ -416,7 +421,7 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 		{
 			sendSymbol(s, true, socket, &out);
 		}
-		
+
 		int size = tf->getConnections().size();
 		//mando tutti gli utenti attualmente connessi
 		out << size;
@@ -427,8 +432,8 @@ void Server::sendFile(QString filename, QString filePath, QTcpSocket* socket, in
 
 		QVector<QString> vect = fileOwnersMap[filePath];
 		//mando tutti gli editor di un certo file
-		out << vect.size(); 
-		
+		out << vect.size();
+
 		for (QString username : vect)
 		{
 			out << subs[username]->getSiteId() << subs.find(username).value()->getNickname();
@@ -517,14 +522,14 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool i
 	socket->flush();
 }
 
-/* Inserisce un simbolo in una certa posizione del file 
+/* Inserisce un simbolo in una certa posizione del file
 */
 std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
-	auto tmpFile = files.find(filename);
+	auto tmpFile = files.find(filepath);
 	//controlli
-	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filename && tmpFile != files.end())
+	if (tmp != connections.end() && tmp.value()->getSiteId() == siteId && tmp.value()->getFilename() == filepath && tmpFile != files.end())
 	{
 		QChar value;
 		bool bold, italic, underlined;
@@ -535,19 +540,36 @@ std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sende
 		Symbol sym(pos, counter, siteId, value, bold, italic, underlined, alignment, textSize, color, font);
 		std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(sym);
 		//tmpFile.value()->addSymbol(symbol);
-		writeLog(filename, symbol, true);
+		writeLog(filepath, symbol, true);
 		return symbol;
 	}
 }
 
+QVector<std::shared_ptr<Symbol>> Server::deleteSymbols(QString filepath, QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> poses, QTcpSocket* sender)
+{
+	QVector<std::shared_ptr<Symbol>> sym;
+	//controlli
+	if (connections.contains(sender) && files.contains(filepath))
+	{
+		UserConn* user = connections[sender];
+		TextFile* file = files[filepath];
+		if (user->getFilename() == filepath) {
+			sym = file->removeSymbols(siteIds, counters, poses);
+			for (std::shared_ptr<Symbol> s : sym) {
+				writeLog(filepath, s, false);
+			}
+			return sym;
+		}
+	}
+}
 /* cancella un simbolo dal file
 */
-std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
+/*std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int counter, QVector<int> pos, QTcpSocket* sender)
 {
 	//auto tmp = connections.find(sender);
 	//auto tmpFile = files.find(filename);
 	std::shared_ptr<Symbol> sym;
-	//controlli                      
+	//controlli
 	if (connections.contains(sender) && files.contains(filepath))
 	{
 		UserConn* user = connections[sender];
@@ -561,7 +583,7 @@ std::shared_ptr<Symbol> Server::deleteSymbol(QString filepath, int siteId, int c
 		}
 	}
 	return nullptr;
-}
+}*/
 /* Mando simboli da inserire o cancellare a un certo client
 */
 void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender)
@@ -634,7 +656,7 @@ void Server::sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bo
 	//receiver->flush();
 }*/
 
-/* Funzione che riceve nickname e image cambiati dal client e restituisce una risposta se presente un errore, invia le modifiche a tutti i 
+/* Funzione che riceve nickname e image cambiati dal client e restituisce una risposta se presente un errore, invia le modifiche a tutti i
 *  client interessati
 */
 void Server::changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender) {
@@ -686,7 +708,7 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 	image.save(username + "/image/image.png", "PNG");
 }
 
-/* Funzione che riceve nickname e tutti i dati dal client e restituisce una risposta se presente un errore, invia le modifiche a tutti i 
+/* Funzione che riceve nickname e tutti i dati dal client e restituisce una risposta se presente un errore, invia le modifiche a tutti i
 *  client interessati
 */
 void Server::changeProfile(QString username, QString nickname, QTcpSocket* sender) {
@@ -789,12 +811,12 @@ void Server::registration(QString username, QString password, QString nickname, 
 	//sender->flush();
 }
 
-/* Mando l'elenco dei file editabili di un certo utente 
+/* Mando l'elenco dei file editabili di un certo utente
 */
 void Server::sendFiles(QTcpSocket* receiver)
 {
 	UserConn* conn = connections.find(receiver).value();
-	QString username = conn->getUsername(); 
+	QString username = conn->getUsername();
 	QByteArray buf;
 	QDataStream out(&buf, QIODevice::WriteOnly);
 	QByteArray bufOut;
@@ -916,11 +938,11 @@ void Server::load_subs()
 				User* user = new User(username, password, nickname, siteId, image);
 				subs.insert(username, user);
 			}
-			else {		
+			else {
 				User* user = new User(username, password, nickname, siteId);
 				subs.insert(username, user);
-			}	
-			
+			}
+
 			siteIdCounter++;
 		}
 		fin.close();
@@ -1193,10 +1215,10 @@ void Server::eraseFile(QString filename, QString username, QTcpSocket* sender)
 			out << 9 << 1 << filename << username; // Gli dico di cancellare il file
 			out_stream << buf;
 			sock->write(bufOut);
-			
+
 			if (connections.find(sock).value()->getFilename().compare(filePath) == 0) {
 				connections.find(sock).value()->setFilename("");
-			}		
+			}
 		}
 	}
 
@@ -1409,8 +1431,6 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 
 		QTextStream stream(files[filePath]->getLogFile());
 		//QTextStream stream(&file);
-
-		// ABBIAMO AGGIUNTO L'ENDLINE QUI PERCHè ALLA FINE DAVA PROBLEMI.
 		stream << endl;
 		if (insert)
 		{
@@ -1452,7 +1472,7 @@ void Server::writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert)
 			stream << 0 << " ";
 		}
 		stream << s->getAlignment() << " " << s->getTextSize() << " " << s->getColor().name() << " " << QString::fromStdString(s->getFont().toStdString());
-		
+
 		//file.close();
 	//}
 }
@@ -1496,13 +1516,11 @@ bool Server::readFromLog(TextFile* f)
 			Symbol sym(vect, counter, siteId, value, bold == 1, italic == 1, underlined == 1, alignment, textSize, color, font);
 
 			if (insert == 1) {
-				QVector<std::shared_ptr<Symbol>> syms;
-				syms.insert(0, std::make_shared<Symbol>(sym));
-				f->addSymbol(syms);
-				//f->addSymbol(std::make_shared<Symbol>(sym));
-			}		
-			else
+				f->addSymbol(std::make_shared<Symbol>(sym));
+			}
+			else if(insert == 0) {
 				f->removeSymbol(siteId, counter, vect);
+			}
 		}
 		fin.close();
 		//saveFile(f); //il log viene rimosso nell saveFile
@@ -1574,6 +1592,6 @@ void Server::cursorPositionChanged(int index, QString filename, QTcpSocket* send
 			}
 		}
 	}
-	
+
 	return;
 }
