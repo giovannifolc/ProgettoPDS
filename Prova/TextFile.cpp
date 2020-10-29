@@ -72,7 +72,7 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 					i = (dx + sx) / 2;
 					if (symbols[i]->getPosition() < newSymbols[k]->getPosition() && newSymbols[k]->getPosition() < symbols[i+1]->getPosition()) {
 						flag = 1;
-						index = i;
+						index = i+1;
 					}
 					else if ((dx == sx + 1) || dx == sx) {
 						flag = 1;
@@ -88,7 +88,10 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 					}
 				}
 			}
-			count++;
+			if(index  != -1){
+				count++;
+			}
+			
 		}
 		else
 		{
@@ -161,7 +164,7 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 			i = (dx + sx) / 2;
 			if (symbols[i]->getPosition() < newSymbol->getPosition() && newSymbol->getPosition() < symbols[i + 1]->getPosition()) {
 				flag = 1;
-				index = i;
+				index = i+1;
 			}
 			else if ((dx == sx + 1) || dx == sx) {
 				flag = 1;
@@ -262,7 +265,7 @@ QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, Q
 		}
 		else {
 			bool successivo = false;
-			if (this->symbols[index + count]->getPosition() == positions[k]) {
+			if ( (index + count) < size && this->symbols[index + count]->getPosition() == positions[k]) {
 				if (this->symbols[index + count]->getSiteId() == siteIds[k] && this->symbols[index + count]->getCounter() == counters[k]) {
 					count++;
 					successivo = true;

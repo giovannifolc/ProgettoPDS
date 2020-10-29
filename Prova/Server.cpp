@@ -1093,7 +1093,8 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender)
 		{
 			if (fileOwnersMap[filePath].contains(tmp->getUsername())) {
 				out << 7 << 4; // Il client può già vedere il file, errore.
-				sender->write(buf);
+				out_stream << out;
+				sender->write(bufOut);
 				return;
 			}
 			fileOwnersMap[filePath].append(tmp->getUsername());
