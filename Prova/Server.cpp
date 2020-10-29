@@ -207,7 +207,9 @@ void Server::onReadyRead()
 					{
 						if (fileOwnersMap[filePath].contains(connections[sock]->getUsername()) && sock != sender && connections[sock]->getFilename() == filePath)
 						{
-							sendSymbols(symbolsToSend.size(), symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+							if (!symbolsToSend.isEmpty()) {
+								sendSymbols(symbolsToSend.size(), symbolsToSend, insert, sock, filePath, siteIdSender); //false per dire che � una cancellazione
+							}	
 						}
 					}
 					qDebug() << "Finito";
@@ -524,7 +526,7 @@ void Server::sendClient(int siteId, QString nickname, QTcpSocket* socket, bool i
 
 /* Inserisce un simbolo in una certa posizione del file
 */
-std::shared_ptr<Symbol> Server::insertSymbol(QString filename, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
+std::shared_ptr<Symbol> Server::insertSymbol(QString filepath, QTcpSocket* sender, QDataStream* in, int siteId, int counter, QVector<int> pos)
 {
 	auto tmp = connections.find(sender);
 	auto tmpFile = files.find(filepath);
@@ -666,12 +668,14 @@ void Server::changeProfile(QString username, QString nickname, QImage image, QTc
 	QByteArray bufOut;
 	QDataStream out_stream(&bufOut, QIODevice::WriteOnly);
 	bool nick = false;
-	for (User* u : subs.values())
-	{
-		if (u->getNickname() == nickname)
+	if (subs[username]->getNickname() != nickname) {
+		for (User* u : subs.values())
 		{
-			nick = true;
-			break;
+			if (u->getNickname() == nickname)
+			{
+				nick = true;
+				break;
+			}
 		}
 	}
 	if (nick)

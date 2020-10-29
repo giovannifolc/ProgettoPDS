@@ -62,10 +62,6 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 					index = size;
 					flag = 1;
 				}
-				else if (newSymbols[k]->getPosition() > symbols[size - 2]->getPosition() && newSymbols[k]->getPosition() < symbols[size - 1]->getPosition()) {
-					index = size - 1;
-					flag = 1;
-				}
 				int i;
 				int dx, sx;
 				dx = size - 1;
@@ -74,12 +70,12 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 				while (flag == 0)
 				{
 					i = (dx + sx) / 2;
-					if (symbols[i - 1]->getPosition() < newSymbols[k]->getPosition() && newSymbols[k]->getPosition() < symbols[i]->getPosition()) {
+					if (symbols[i]->getPosition() < newSymbols[k]->getPosition() && newSymbols[k]->getPosition() < symbols[i+1]->getPosition()) {
 						flag = 1;
 						index = i;
 					}
 					else {
-						if (symbols[i - 1]->getPosition() > newSymbols[k]->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
+						if (symbols[i]->getPosition() > newSymbols[k]->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
 							dx = i;
 						}
 						else {
@@ -148,10 +144,6 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 			index = size;
 			flag = 1;
 		}
-		else if (newSymbol->getPosition() > symbols[size - 2]->getPosition() && newSymbol->getPosition() < symbols[size - 1]->getPosition()) {
-			index = size - 1;
-			flag = 1;
-		}
 		int i;
 		int dx, sx;
 		dx = size -1;
@@ -160,17 +152,17 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 		while (flag == 0)
 		{
 			i = (dx + sx) / 2;
-			if (symbols[i - 1]->getPosition() < newSymbol->getPosition() && newSymbol->getPosition() < symbols[i]->getPosition()) {
+			if (symbols[i]->getPosition() < newSymbol->getPosition() && newSymbol->getPosition() < symbols[i + 1]->getPosition()) {
 				flag = 1;
 				index = i;
 			}
 			else {
-				if (symbols[i - 1]->getPosition() > newSymbol->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
+				if (symbols[i]->getPosition() > newSymbol->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
 					dx = i;
 				}
 				else {
 					sx = i;
-				}
+				}			
 			}
 		}
 	}
@@ -239,7 +231,7 @@ QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, Q
 						}
 					}
 					else {
-						if (dx == sx) {
+						if (dx == sx || dx == sx + 1) {
 							flag = true;
 						}
 						else {
@@ -270,6 +262,7 @@ QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, Q
 				this->symbols = inizio;
 				this->symbols.append(fine);
 				sym.append(toErase);
+				size = this->symbols.size();
 				count = 0;
 				k--;
 			}
@@ -334,11 +327,16 @@ std::shared_ptr<Symbol> TextFile::removeSymbol(int siteId, int counter, QVector<
 				}
 			}
 			else {
-				if (this->symbols[i]->getPosition() > position) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
-					dx = i;
+				if (dx == sx || dx == sx + 1) {
+					flag = true;
 				}
 				else {
-					sx = i;
+					if (this->symbols[i]->getPosition() > position) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
+						dx = i;
+					}
+					else {
+						sx = i;
+					}
 				}
 			}
 
