@@ -74,6 +74,10 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 						flag = 1;
 						index = i;
 					}
+					else if ((dx == sx + 1) || dx == sx) {
+						flag = 1;
+						index = -1;
+					} 
 					else {
 						if (symbols[i]->getPosition() > newSymbols[k]->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
 							dx = i;
@@ -89,7 +93,11 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 		else
 		{
 			bool successivo = false;
-			if (newSymbols[k]->getPosition() > newSymbols[k - 1]->getPosition()) {
+			if (index == -1) {
+				count = 0;
+				k--;
+			}
+			else if (newSymbols[k]->getPosition() > newSymbols[k - 1]->getPosition()) {
 				if ((index != size && newSymbols[k]->getPosition() < symbols[index]->getPosition()) || (index == size)) {
 					count++;
 					successivo = true;
@@ -108,18 +116,17 @@ void TextFile::addSymbols(QVector<std::shared_ptr<Symbol>> newSymbols) {
 			}
 		}
 	}
-
-	QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
-	QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
-	QVector<std::shared_ptr<Symbol>> added = newSymbols.mid(newSymbols.size() - count, count);
-	symbols = inizio;
-	symbols.append(added);
-	symbols.append(fine);
+	if (index != -1) {
+		QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
+		QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
+		QVector<std::shared_ptr<Symbol>> added = newSymbols.mid(newSymbols.size() - count, count);
+		symbols = inizio;
+		symbols.append(added);
+		symbols.append(fine);
+	}	
 }
 
 void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
-	QVector<std::shared_ptr<Symbol>> syms;
-
 	int index = symbols.size();
 	int size = symbols.size();
 	if (size == 0) {
@@ -156,6 +163,10 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 				flag = 1;
 				index = i;
 			}
+			else if ((dx == sx + 1) || dx == sx) {
+				flag = 1;
+				index = -1;
+			}
 			else {
 				if (symbols[i]->getPosition() > newSymbol->getPosition()) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
 					dx = i;
@@ -166,11 +177,13 @@ void TextFile::addSymbol(std::shared_ptr<Symbol> newSymbol) {
 			}
 		}
 	}
-	QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
-	QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
-	symbols = inizio;
-	symbols.append(newSymbol);
-	symbols.append(fine);
+	if (index != -1) {
+		QVector<std::shared_ptr<Symbol>> inizio = symbols.mid(0, index);
+		QVector<std::shared_ptr<Symbol>> fine = symbols.mid(index, symbols.size() - index);
+		symbols = inizio;
+		symbols.append(newSymbol);
+		symbols.append(fine);
+	}
 }
 
 QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, QVector<int> counters, QVector<QVector<int>> positions) {
@@ -329,6 +342,7 @@ std::shared_ptr<Symbol> TextFile::removeSymbol(int siteId, int counter, QVector<
 			else {
 				if (dx == sx || dx == sx + 1) {
 					flag = true;
+					index = -1;
 				}
 				else {
 					if (this->symbols[i]->getPosition() > position) {// il nostro simbolo ha pos minore del simbolo indicizzato -> andare a sinistra;
@@ -342,8 +356,11 @@ std::shared_ptr<Symbol> TextFile::removeSymbol(int siteId, int counter, QVector<
 
 		}
 	}
-	std::shared_ptr<Symbol> sym = symbols[index];
-	symbols.remove(index);
+	std::shared_ptr<Symbol> sym;
+	if (index != -1) {
+		sym = symbols[index];
+		symbols.remove(index);
+	}
 	return sym;
 }
 
