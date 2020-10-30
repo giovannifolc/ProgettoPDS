@@ -1521,10 +1521,18 @@ bool Server::readFromLog(TextFile* f)
 			Symbol sym(vect, counter, siteId, value, bold == 1, italic == 1, underlined == 1, alignment, textSize, color, font);
 
 			if (insert == 1) {
-				f->addSymbol(std::make_shared<Symbol>(sym));
+				QVector<std::shared_ptr<Symbol>> syms;
+				syms.append(std::make_shared<Symbol>(sym));
+				f->addSymbols(syms);
 			}
 			else if(insert == 0) {
-				f->removeSymbol(siteId, counter, vect);
+				QVector<int> siteIds;
+				QVector<int> counters;
+				QVector<QVector<int>> vects;
+				siteIds.append(siteId);
+				counters.append(counter);
+				vects.append(vect);
+				f->removeSymbols(siteIds, counters, vects);
 			}
 		}
 		fin.close();
