@@ -1557,7 +1557,7 @@ QString Server::genRandom()
 	};
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 	std::default_random_engine generator(seed);
-	std::uniform_int_distribution<int> distribution(0, 70);
+	std::uniform_int_distribution<int> distribution(0, 69);
 	char randChar;
 	QString s;
 
