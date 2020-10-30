@@ -1093,7 +1093,7 @@ void Server::shareOwnership(QString uri, QTcpSocket* sender)
 		{
 			if (fileOwnersMap[filePath].contains(tmp->getUsername())) {
 				out << 7 << 4; // Il client può già vedere il file, errore.
-				out_stream << out;
+				out_stream << buf;
 				sender->write(bufOut);
 				return;
 			}
@@ -1544,24 +1544,26 @@ void Server::deleteLog(TextFile* f)
 	f->closeLogFile();
 }
 
+
 /* Genera una stringa randomica per l'URI
 */
 QString Server::genRandom()
 { // Random string generator function.
-
+    
+	QVector<char> caratteri = { 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r',
+		's','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','.',',',':',';','_','-','!','?',
+		'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R',
+		'S','T','U','V','W','X','Y','Z'
+	};
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 	std::default_random_engine generator(seed);
-	std::uniform_int_distribution<int> distribution(0, 90);
+	std::uniform_int_distribution<int> distribution(0, 70);
 	char randChar;
 	QString s;
 
 	for (int i = 0; i < 32; i++)
 	{
-		randChar = distribution(generator) + 33;
-		if (randChar == 63 || randChar == 47)
-		{
-			randChar = +1;
-		}
+		randChar = caratteri[distribution(generator)];		
 		s.append(randChar);
 	}
 
