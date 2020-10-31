@@ -30,7 +30,7 @@ Q_SIGNALS:/*definizione di segnali*/
 private slots:
 	void onNewConnection();
 	void onDisconnected();
-	void saveFile(TextFile* f);
+	void saveFile(std::shared_ptr<TextFile> f);
 	void onReadyRead();
 	void saveIfLast(QString filename);
 	//void changeCredentials(QString username, QString old_password, QString new_password, QString nickname, QTcpSocket* receiver);
@@ -48,11 +48,11 @@ private:
 	QTcpServer* server;
 	int siteIdCounter = 0; //devo salvarlo da qualche parte in caso di crash?
 
-	QMap<QTcpSocket*, UserConn*> connections;//client connessi
+	QMap<QTcpSocket*, std::shared_ptr<UserConn>> connections;//client connessi
 
-	QMap<QString, TextFile*> files;//file in archivio
+	QMap<QString, std::shared_ptr<TextFile>> files;//file in archivio
 
-	QMap<QString, User*> subs;//utenti iscritti
+	QMap<QString, std::shared_ptr<User>> subs;//utenti iscritti
 
 	QMap<QString, QVector<QString>> filesForUser; //file associati ad ogni utente 
 
@@ -62,8 +62,8 @@ private:
 
 	void load_subs();
 	void load_files();
-	void load_file(TextFile* f);
-	void addNewUserToFile(User* user);
+	void load_file(std::shared_ptr<TextFile> f);
+	void addNewUserToFile(std::shared_ptr<User> user);
 	void addNewFile(QString filePath, QString user);
 	void rewriteUsersFile();
 	bool isAuthenticated(QTcpSocket* socket);
@@ -75,8 +75,8 @@ private:
 	void changeProfile(QString username, QString nickname, QImage image, QTcpSocket* sender);
 	void changeProfile(QString username, QString nickname, QTcpSocket* sender);
 	void writeLog(QString filePath, std::shared_ptr<Symbol> s, bool insert);
-	bool readFromLog(TextFile* f);
-	void deleteLog(TextFile* f);
+	bool readFromLog(std::shared_ptr<TextFile> f);
+	void deleteLog(std::shared_ptr <TextFile> f);
 	void cursorPositionChanged(int index, QString filename, QTcpSocket* sender);
 	void sendSymbols(int n_sym, QVector<std::shared_ptr<Symbol>> symbols, bool insert, QTcpSocket* socket, QString filename, int siteIdSender);
 

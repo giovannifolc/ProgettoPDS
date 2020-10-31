@@ -10,6 +10,7 @@ public:
 	TextFile(QString filename, QString filePath);
 	TextFile(QString filename, QString filePath, QTcpSocket* connection);
 	~TextFile();
+	TextFile::TextFile(const TextFile& other);
 	QString getFilename();
 	QString getFilePath();
 	QVector<std::shared_ptr<Symbol>> getSymbols();

@@ -12,6 +12,12 @@ TextFile::TextFile(QString filename, QString filePath, QTcpSocket* connection): 
 
 }
 
+TextFile::TextFile(const TextFile& other) {
+	this->filename = other.filename;
+	this->connections = other.connections;
+	this->filePath = other.filePath;
+}
+
 TextFile::~TextFile() {}
 
 QString TextFile::getFilename()
