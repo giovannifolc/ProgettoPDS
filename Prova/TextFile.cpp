@@ -149,6 +149,7 @@ QVector<std::shared_ptr<Symbol>> TextFile::removeSymbols(QVector<int> siteIds, Q
 			if (size == 1 && positions[k] == this->symbols[0]->getPosition()) {
 				if (this->symbols[0]->getSiteId() == siteIds[k] && this->symbols[0]->getCounter() == counters[k]) {
 					sym.push_back(this->symbols[0]);
+					index = 0;
 					count++;
 				}
 			}
